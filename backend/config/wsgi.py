@@ -8,6 +8,15 @@ https://docs.djangoproject.com/en/6.0/howto/deployment/wsgi/
 """
 
 import os
+import sys
+from pathlib import Path
+
+# Make the `backend` folder importable ("config", "core").
+# Needed on Vercel, which loads this file from the repository root, so Python
+# would not find the `config` package otherwise (ModuleNotFoundError: No module named 'config').
+BACKEND_DIR = Path(__file__).resolve().parent.parent
+if str(BACKEND_DIR) not in sys.path:
+    sys.path.insert(0, str(BACKEND_DIR))
 
 from django.core.wsgi import get_wsgi_application
 
