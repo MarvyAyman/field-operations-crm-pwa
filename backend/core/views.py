@@ -356,6 +356,10 @@ class VisitViewSet(OfflineWritableMixin, viewsets.ModelViewSet):
 # OFFLINE SYNC ENDPOINT
 # ==========================================================
 # (response key, model, serializer, supports soft delete)
+# Small reference lists that are ALWAYS sent in full (never only "what changed"):
+# a hidden / removed item must disappear from every phone, even when its updated_at was not touched.
+REPLACE_TABLES = ['lookup_values']
+
 SYNC_TABLES = [
     ('lookup_values', LookupValue, LookupValueSerializer, False),
     ('areas', Area, AreaSerializer, True),
@@ -407,7 +411,7 @@ def sync_data(request):
             live = qs.filter(deleted_at__isnull=True)
         else:
             live = qs
-        if since is not None:
+        if since is not None and key not in REPLACE_TABLES:
             live = live.filter(updated_at__gte=since)
         tables[key] = serializer_class(live, many=True).data
 
@@ -422,6 +426,7 @@ def sync_data(request):
     return Response({
         'server_time': server_time.isoformat(),
         'full': since is None,
+        'replace': REPLACE_TABLES,  # tables the device must replace completely
         'tables': tables,
         'deleted': deleted,
     })

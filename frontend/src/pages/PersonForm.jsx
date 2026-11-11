@@ -107,7 +107,7 @@ export default function PersonForm() {
           </p>
         )}
 
-        <PersonFields get={get} set={set} lookups={data.lookup_values} showRelation nameRef={nameRef} />
+        <PersonFields get={get} set={set} lookups={data.lookup_values} showRelation showContact nameRef={nameRef} />
 
         <ErrorText>{error}</ErrorText>
 

@@ -242,7 +242,7 @@ export default function AddFamily() {
   const secondaryBtn = 'w-full bg-white text-maroon border-2 border-maroon text-lg font-bold p-4 rounded-xl flex items-center justify-center gap-2 disabled:opacity-60';
 
   // PersonFields edits "full_name": for the head that is the family name
-  const headGet = (k) => (k === 'full_name' ? get('family_name') : get(k));
+  const headGet = (k) => (k === 'full_name' ? get('family_name') : ['phone', 'phone2', 'notes'].includes(k) ? undefined : get(k)); // family phones/notes have their own fields above
   const headSet = (k) => (k === 'full_name' ? set('family_name') : set(k));
 
   return (

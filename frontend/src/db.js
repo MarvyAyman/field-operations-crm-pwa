@@ -71,7 +71,7 @@ export async function setMeta(key, value) {
 // One transaction (all or nothing). Rows that still have a change waiting in the
 // outbox are never overwritten by the server copy, and rows created offline
 // (_pending) are never wiped by a full download.
-export async function applySync({ tables = {}, deleted = {}, full = false }) {
+export async function applySync({ tables = {}, deleted = {}, full = false, replace = [] }) {
   const db = await getDB();
   const tx = db.transaction([...TABLES, 'outbox'], 'readwrite');
   const queued = new Set(await tx.objectStore('outbox').getAllKeys());
@@ -79,7 +79,7 @@ export async function applySync({ tables = {}, deleted = {}, full = false }) {
   for (const table of TABLES) {
     const store = tx.objectStore(table);
 
-    if (full) {
+    if (full || replace.includes(table)) {
       let cursor = await store.openCursor();
       while (cursor) {
         if (!cursor.value._pending) await cursor.delete();

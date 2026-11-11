@@ -151,6 +151,10 @@ export default function Family() {
                 {[labelOf(p.relation_id, p.gender) || p.extra?.relation_other, GENDER[p.gender], labelOf(p.status_id, p.gender), labelOf(p.marital_status_id, p.gender), p.job,
                       (labelOf(p.confessor_id, p.gender) || p.extra?.confessor_other) && `أب الاعتراف: ${labelOf(p.confessor_id, p.gender) || p.extra.confessor_other}`].filter(Boolean).join(' · ')}
               </span>
+              {(p.extra?.phone || p.extra?.phone2) && (
+                <span dir="ltr" className="block text-sm text-gray-600 text-right">{[p.extra.phone, p.extra.phone2].filter(Boolean).join(' · ')}</span>
+              )}
+              {p.extra?.notes && <span className="block text-sm text-gray-500">{p.extra.notes}</span>}
             </Link>
           ))}
         </Section>

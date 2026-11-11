@@ -4,7 +4,7 @@ import { Field } from './ui.jsx';
 // The person questions, shared by "head of the family" (add-family form) and "family member" (person form).
 //   get(key) / set(key) -> read / change a field.   lookups = all lookup_values.
 //   nameLabel : label of the name field.   showRelation : members only (the head is the head).
-export default function PersonFields({ get, set, lookups, nameLabel = 'الاسم *', namePlaceholder, showRelation = false, nameRef }) {
+export default function PersonFields({ get, set, lookups, nameLabel = 'الاسم *', namePlaceholder, showRelation = false, showContact = false, nameRef }) {
   const gender = get('gender');
   const relations = lookupsFor(lookups, LOOKUP.relation);
   const statuses = lookupsFor(lookups, LOOKUP.personStatus);
@@ -60,7 +60,7 @@ export default function PersonFields({ get, set, lookups, nameLabel = 'الاس�
         <select value={get('confessor_id')} onChange={set('confessor_id')} className={inputClass}>
           <option value="">—</option>
           {confessors.map((o) => <option key={o.id} value={o.id}>{lookupLabel(o, gender)}</option>)}
-          <option value={OTHER}>آخر...</option>
+          <option value={OTHER}>آخر ...</option>
         </select>
       </Field>
       {get('confessor_id') === OTHER && (
@@ -71,6 +71,20 @@ export default function PersonFields({ get, set, lookups, nameLabel = 'الاس�
       <Field label="تاريخ الميلاد">
         <input type="date" value={get('birth_date')} onChange={set('birth_date')} className={inputClass} />
       </Field>
+
+      {showContact && (
+        <>
+          <Field label="رقم الموبايل">
+            <input type="tel" inputMode="tel" dir="ltr" value={get('phone')} onChange={set('phone')} className={inputClass} placeholder="01xxxxxxxxx" />
+          </Field>
+          <Field label="موبايل آخر">
+            <input type="tel" inputMode="tel" dir="ltr" value={get('phone2')} onChange={set('phone2')} className={inputClass} />
+          </Field>
+          <Field label="ملاحظات">
+            <textarea rows={3} value={get('notes')} onChange={set('notes')} className={inputClass} />
+          </Field>
+        </>
+      )}
     </>
   );
 }

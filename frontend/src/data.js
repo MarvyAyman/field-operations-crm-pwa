@@ -56,6 +56,7 @@ export function personFormDefault(person, key) {
   if (key === 'confessor_other') return person?.extra?.confessor_other ?? '';
   if (key === 'relation_id') return person?.relation_id || (person?.extra?.relation_other ? OTHER : '');
   if (key === 'relation_other') return person?.extra?.relation_other ?? '';
+  if (key === 'phone' || key === 'phone2' || key === 'notes') return person?.extra?.[key] ?? '';
   return person?.[key] ?? '';
 }
 
@@ -68,6 +69,13 @@ export function personFieldsFromForm(get, existingExtra = null) {
   const extra = { ...(existingExtra || {}) };
   delete extra.confessor_other;
   delete extra.relation_other;
+  // the person's own phones and notes (only the person form has these inputs; keep what is stored otherwise)
+  for (const k of ['phone', 'phone2', 'notes']) {
+    const v = get(k);
+    if (v === undefined || v === null) continue;
+    const t = k === 'notes' ? String(v).trim() : toAsciiDigits(String(v).trim());
+    if (t) extra[k] = t; else delete extra[k];
+  }
   if (other && get('confessor_other').trim()) extra.confessor_other = get('confessor_other').trim();
   if (relOther && get('relation_other').trim()) extra.relation_other = get('relation_other').trim();
   return {
