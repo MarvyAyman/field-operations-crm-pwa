@@ -34,7 +34,7 @@ function PhoneLink({ number, label }) {
 export default function Family() {
   const { familyId } = useParams();
   const navigate = useNavigate();
-  const { runSync } = useAuth();
+  const { runSync, user } = useAuth();
   const { data, loading } = useTables([
     'streets', 'buildings', 'families', 'people', 'family_phones', 'family_internal_notes', 'visits', 'lookup_values',
   ]);
@@ -171,6 +171,9 @@ export default function Family() {
                 <span className="text-sm text-green-700 mr-2">{labelOf(v.status_id)}</span>
               )}
               {v.notes && <span className="block text-sm text-gray-600 whitespace-pre-line">{v.notes}</span>}
+              {(v.created_by_name || v._pending) && (
+                <span className="block text-xs text-gray-500 mt-1">بواسطة: {v.created_by_name || user?.name || user?.email}</span>
+              )}
             </Link>
           ))}
         </Section>

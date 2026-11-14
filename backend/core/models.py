@@ -16,6 +16,7 @@ class Member(models.Model):
     id = models.UUIDField(primary_key=True)
     church_id = models.UUIDField(blank=True, null=True)
     email = models.TextField(blank=True, null=True)
+    full_name = models.TextField(blank=True, null=True)  # shown as "visited by"
     role = models.TextField(blank=True, null=True)  # admin, servant, viewer
     active = models.BooleanField(blank=True, null=True)
     created_at = models.DateTimeField(blank=True, null=True)
@@ -166,6 +167,7 @@ class Visit(models.Model):
     status_id = models.UUIDField(blank=True, null=True)
     visited_on = models.DateField(blank=True, null=True)
     notes = models.TextField(blank=True, null=True)
+    created_by = models.UUIDField(blank=True, null=True)  # the member who registered the visit
     created_at = models.DateTimeField(blank=True, null=True)
     updated_at = models.DateTimeField(blank=True, null=True)
     updated_by = models.UUIDField(blank=True, null=True)

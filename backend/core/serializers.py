@@ -1,7 +1,7 @@
 from rest_framework import serializers
 from .models import (
     Area, Street, Building, Family, Person,
-    FamilyPhone, Visit, LookupValue, FamilyInternalNote
+    FamilyPhone, Visit, LookupValue, FamilyInternalNote, Member
 )
 
 
@@ -86,10 +86,21 @@ class FamilyPhoneSerializer(serializers.ModelSerializer):
 
 class VisitSerializer(serializers.ModelSerializer):
     id = serializers.UUIDField(required=False)  # created on the device
+    created_by_name = serializers.SerializerMethodField()
 
     class Meta:
         model = Visit
         fields = '__all__'
+        read_only_fields = ['created_by']  # set by the server from the logged-in member
+
+    def get_created_by_name(self, obj):
+        if not obj.created_by:
+            return ''
+        cache = self.context.setdefault('_member_names', {})
+        if obj.created_by not in cache:
+            m = Member.objects.filter(pk=obj.created_by).first()
+            cache[obj.created_by] = ((m.full_name or '').strip() or (m.email or '').split('@')[0]) if m else ''
+        return cache[obj.created_by]
 
 
 class FamilyInternalNoteSerializer(serializers.ModelSerializer):

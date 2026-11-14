@@ -32,7 +32,7 @@ def _user_payload(user, member):
     """The profile the frontend caches on the device for offline use."""
     return {
         'email': user.email,
-        'name': user.first_name or user.username,
+        'name': (member.full_name or '').strip() or user.first_name or user.username,
         'role': member.role,
         'church_id': str(member.church_id) if member.church_id else None,
     }
@@ -235,6 +235,7 @@ class OfflineWritableMixin:
             created_at=now,
             updated_at=now,
             updated_by=member.id,
+            **({'created_by': member.id} if hasattr(self.queryset.model, 'created_by') else {}),
         )
 
     def perform_update(self, serializer):
