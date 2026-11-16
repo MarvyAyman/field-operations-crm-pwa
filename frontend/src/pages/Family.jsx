@@ -3,7 +3,7 @@ import { Link, useNavigate, useParams } from 'react-router-dom';
 import { Plus, Pencil, Phone, Trash2, ClipboardList } from 'lucide-react';
 import { useAuth } from '../auth.jsx';
 import { deleteRow } from '../db';
-import { useTables, lookupsFor, LOOKUP, buildingLabel } from '../data.js';
+import { useTables, lookupsFor, LOOKUP, buildingLabel, areaLabel, confessorNames } from '../data.js';
 import { PageHeader, Loading, NotFound, PendingBadge } from '../components/ui.jsx';
 
 const GENDER = { male: 'ذكر', female: 'أنثى' };
@@ -36,12 +36,13 @@ export default function Family() {
   const navigate = useNavigate();
   const { runSync, user } = useAuth();
   const { data, loading } = useTables([
-    'streets', 'buildings', 'families', 'people', 'family_phones', 'family_internal_notes', 'visits', 'lookup_values',
+    'areas', 'streets', 'buildings', 'families', 'people', 'family_phones', 'family_internal_notes', 'visits', 'lookup_values',
   ]);
 
   const family = data.families.find((f) => f.id === familyId);
   const building = data.buildings.find((b) => b.id === family?.building_id);
   const street = data.streets.find((s) => s.id === building?.street_id);
+  const area = data.areas.find((a) => a.id === street?.area_id);
 
   const people = useMemo(
     () => data.people.filter((p) => p.family_id === familyId).sort((a, b) => (a.full_name || '').localeCompare(b.full_name || '', 'ar')),
@@ -79,7 +80,8 @@ export default function Family() {
     navigate(back, { replace: true });
   };
 
-  const where = [street?.name, building && buildingLabel(building), family.floor_no && `الدور ${family.floor_no}`, family.apartment_no && `شقة ${family.apartment_no}`]
+  const movedTo = family.moved ? `انتقلت إلى ${area?.kind === 'other_church' ? areaLabel(area) : 'كنيسة أخرى'}` : '';
+  const where = [movedTo, street?.name, !family.moved && building && buildingLabel(building), family.floor_no && `الدور ${family.floor_no}`, family.apartment_no && `شقة ${family.apartment_no}`]
     .filter(Boolean)
     .join(' · ');
 
@@ -149,7 +151,7 @@ export default function Family() {
               </span>
               <span className="block text-sm text-gray-500">
                 {[labelOf(p.relation_id, p.gender) || p.extra?.relation_other, GENDER[p.gender], labelOf(p.status_id, p.gender), labelOf(p.marital_status_id, p.gender), p.job,
-                      (labelOf(p.confessor_id, p.gender) || p.extra?.confessor_other) && `أب الاعتراف: ${labelOf(p.confessor_id, p.gender) || p.extra.confessor_other}`].filter(Boolean).join(' · ')}
+                      confessorNames(p, data.lookup_values).length > 0 && `${confessorNames(p, data.lookup_values).length > 1 ? 'آباء الاعتراف' : 'أب الاعتراف'}: ${confessorNames(p, data.lookup_values).join('، ')}`].filter(Boolean).join(' · ')}
               </span>
               {(p.extra?.phone || p.extra?.phone2) && (
                 <span dir="ltr" className="block text-sm text-gray-600 text-right">{[p.extra.phone, p.extra.phone2].filter(Boolean).join(' · ')}</span>

@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import { useParams } from 'react-router-dom';
-import { useTables } from '../data.js';
+import { useTables, areaLabel } from '../data.js';
 import { PageHeader, ListLink, Loading, NotFound, AddFamilyFab } from '../components/ui.jsx';
 
 // Streets of one region
@@ -30,9 +30,9 @@ export default function Area() {
 
   return (
     <div className="pb-28">
-      <PageHeader title={`منطقة ${area.area_no}`} subtitle={`${streets.length} شارع`} back="/" />
+      <PageHeader title={areaLabel(area)} subtitle={`${streets.length} شارع`} back="/" />
       <div className="p-4 space-y-3">
-        {streets.length === 0 && <p className="text-center text-gray-500">لا توجد شوارع في هذه المنطقة</p>}
+        {streets.length === 0 && <p className="text-center text-gray-500">{area.kind === 'other_church' ? 'لا توجد شوارع مسجلة لهذه الكنيسة' : 'لا توجد شوارع في هذه المنطقة'}</p>}
         {streets.map((s) => (
           <ListLink key={s.id} to={`/street/${s.id}`}>
             <span className="font-bold text-lg">{s.name}</span>

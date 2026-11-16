@@ -33,6 +33,8 @@ export function syncNow() {
 
 // table name -> REST endpoint
 const ENDPOINTS = {
+  areas: '/areas/',
+  streets: '/streets/',
   families: '/families/',
   buildings: '/buildings/',
   people: '/people/',

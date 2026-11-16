@@ -157,29 +157,6 @@ def logout_view(request):
 # ==========================================================
 # API VIEWSETS
 # ==========================================================
-class AreaViewSet(viewsets.ReadOnlyModelViewSet):
-    queryset = Area.objects.filter(deleted_at__isnull=True)
-    serializer_class = AreaSerializer
-    permission_classes = [IsServantOrAdmin]
-
-
-class StreetViewSet(viewsets.ReadOnlyModelViewSet):
-    queryset = Street.objects.filter(deleted_at__isnull=True)
-    serializer_class = StreetSerializer
-    permission_classes = [IsServantOrAdmin]
-
-    @action(detail=False, methods=['get'], url_path='by-area/(?P<area_id>[^/.]+)')
-    def by_area(self, request, area_id=None):
-        streets = self.queryset.filter(area_id=area_id)
-        return Response(self.get_serializer(streets, many=True).data)
-
-
-class LookupValueViewSet(viewsets.ReadOnlyModelViewSet):
-    queryset = LookupValue.objects.filter(active=True)
-    serializer_class = LookupValueSerializer
-    permission_classes = [IsAuthenticated]
-
-
 class OfflineWritableMixin:
     """
     Behaviour every writable table needs for the offline app:
@@ -257,6 +234,32 @@ class OfflineWritableMixin:
         instance.updated_at = now
         instance.save()
         return Response(status=204)
+
+
+class AreaViewSet(OfflineWritableMixin, viewsets.ModelViewSet):
+    # writable: the family form can add a new area / a church the families moved to
+    queryset = Area.objects.filter(deleted_at__isnull=True)
+    serializer_class = AreaSerializer
+    permission_classes = [IsServantOrAdmin]
+
+
+class StreetViewSet(OfflineWritableMixin, viewsets.ModelViewSet):
+    # writable: the family form can add a new street
+    queryset = Street.objects.filter(deleted_at__isnull=True)
+    serializer_class = StreetSerializer
+    permission_classes = [IsServantOrAdmin]
+    parent_fields = {'area_id': Area}
+
+    @action(detail=False, methods=['get'], url_path='by-area/(?P<area_id>[^/.]+)')
+    def by_area(self, request, area_id=None):
+        streets = self.queryset.filter(area_id=area_id)
+        return Response(self.get_serializer(streets, many=True).data)
+
+
+class LookupValueViewSet(viewsets.ReadOnlyModelViewSet):
+    queryset = LookupValue.objects.filter(active=True)
+    serializer_class = LookupValueSerializer
+    permission_classes = [IsAuthenticated]
 
 
 class BuildingViewSet(OfflineWritableMixin, viewsets.ModelViewSet):

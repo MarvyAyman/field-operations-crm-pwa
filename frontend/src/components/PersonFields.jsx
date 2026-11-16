@@ -1,4 +1,5 @@
 import { inputClass, lookupsFor, lookupLabel, LOOKUP, OTHER } from '../data.js';
+import { Plus, X } from 'lucide-react';
 import { Field } from './ui.jsx';
 
 // The person questions, shared by "head of the family" (add-family form) and "family member" (person form).
@@ -68,6 +69,43 @@ export default function PersonFields({ get, set, lookups, nameLabel = 'الاس�
           <input type="text" value={get('confessor_other')} onChange={set('confessor_other')} className={inputClass} placeholder="اكتب اسم أب الاعتراف" />
         </Field>
       )}
+      {/* more than one confessor: each extra one is its own row */}
+      {(get('confessor_more') || []).map((c, i) => {
+        const rows = get('confessor_more');
+        const change = (patch) => set('confessor_more')({ target: { value: rows.map((r, j) => (j === i ? { ...r, ...patch } : r)) } });
+        return (
+          <div key={i} className="space-y-2">
+            <Field label={`أب اعتراف آخر (${i + 2})`}>
+              <div className="flex gap-2">
+                <select value={c.v} onChange={(e) => change({ v: e.target.value })} className={inputClass}>
+                  <option value="">—</option>
+                  {confessors.map((o) => <option key={o.id} value={o.id}>{lookupLabel(o, gender)}</option>)}
+                  <option value={OTHER}>آخر ...</option>
+                </select>
+                <button
+                  type="button"
+                  aria-label="حذف أب الاعتراف"
+                  onClick={() => set('confessor_more')({ target: { value: rows.filter((_, j) => j !== i) } })}
+                  className="px-3 rounded-lg border bg-white text-red-600"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+            </Field>
+            {c.v === OTHER && (
+              <input type="text" value={c.other} onChange={(e) => change({ other: e.target.value })} className={inputClass} placeholder="اكتب اسم أب الاعتراف" />
+            )}
+          </div>
+        );
+      })}
+      <button
+        type="button"
+        onClick={() => set('confessor_more')({ target: { value: [...(get('confessor_more') || []), { v: '', other: '' }] } })}
+        className="w-full bg-white border-2 border-dashed border-navy/30 text-navy font-bold p-3 rounded-xl flex items-center justify-center gap-2"
+      >
+        <Plus className="w-4 h-4" /> إضافة أب اعتراف آخر
+      </button>
+
       <Field label="تاريخ الميلاد">
         <input type="date" value={get('birth_date')} onChange={set('birth_date')} className={inputClass} />
       </Field>

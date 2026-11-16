@@ -31,6 +31,8 @@ class Area(models.Model):
     id = models.UUIDField(primary_key=True)
     church_id = models.UUIDField(blank=True, null=True)
     area_no = models.TextField(blank=True, null=True)
+    kind = models.TextField(default='own')  # 'own' = one of our areas, 'other_church' = a church families moved to
+    name = models.TextField(blank=True, null=True)  # the church name (other_church only)
     created_at = models.DateTimeField(blank=True, null=True)
     updated_at = models.DateTimeField(blank=True, null=True)
     updated_by = models.UUIDField(blank=True, null=True)
@@ -107,6 +109,7 @@ class Family(models.Model):
     contract_type_id = models.UUIDField(blank=True, null=True)
     notes = models.TextField(blank=True, null=True)
     last_visit_on = models.DateField(blank=True, null=True)
+    moved = models.BooleanField(default=False)  # the family moved to another church
     extra = models.JSONField(blank=True, null=True)
     import_key = models.TextField(blank=True, null=True)
     created_at = models.DateTimeField(blank=True, null=True)

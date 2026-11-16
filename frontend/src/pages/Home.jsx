@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import { Search, LogOut, RefreshCw, AlertTriangle } from 'lucide-react';
 import { useAuth } from '../auth.jsx';
 import { discardFailed } from '../db';
-import { useTables, useOutboxCounts, toAsciiDigits } from '../data.js';
+import { useTables, useOutboxCounts, toAsciiDigits, areaLabel } from '../data.js';
 import { ListLink, PendingBadge, AddFamilyFab } from '../components/ui.jsx';
 
 export default function Home() {
@@ -21,9 +21,11 @@ export default function Home() {
       if (areaId) perArea.set(areaId, (perArea.get(areaId) || 0) + 1);
     }
     return [...data.areas]
-      .sort((a, b) => (a.area_no || '').localeCompare(b.area_no || '', 'ar', { numeric: true }))
+      .sort((a, b) => (a.area_no || a.name || '').localeCompare(b.area_no || b.name || '', 'ar', { numeric: true }))
       .map((a) => ({ ...a, familyCount: perArea.get(a.id) || 0 }));
   }, [data]);
+  const ownAreas = useMemo(() => areas.filter((a) => a.kind !== 'other_church'), [areas]);
+  const otherChurches = useMemo(() => areas.filter((a) => a.kind === 'other_church'), [areas]);
 
   // search by name / phone / apartment, across ALL regions, works offline
   const results = useMemo(() => {
@@ -135,7 +137,7 @@ export default function Home() {
             <h2 className="text-xl font-bold text-navy text-center mb-6">اختيار المنطقة</h2>
 
             <div className="space-y-4">
-              {loading || areas.length === 0 ? (
+              {loading || ownAreas.length === 0 ? (
                 <p className="text-center text-gray-500">
                   {syncing
                     ? 'جاري تحميل البيانات...'
@@ -146,10 +148,10 @@ export default function Home() {
                         : 'لا توجد مناطق مسجلة حتى الآن.'}
                 </p>
               ) : (
-                areas.map((area, index) => (
+                ownAreas.map((area, index) => (
                   <ListLink key={area.id} to={`/area/${area.id}`} highlight={index === 0}>
                     <span>
-                      <span className="text-2xl font-bold block">منطقة {area.area_no}</span>
+                      <span className="text-2xl font-bold block">{areaLabel(area)}</span>
                       <span className="text-sm opacity-80">{area.familyCount} أسرة</span>
                     </span>
                     <span className="text-3xl">📍</span>
@@ -157,6 +159,23 @@ export default function Home() {
                 ))
               )}
             </div>
+
+            {otherChurches.length > 0 && (
+              <div className="mt-10">
+                <h2 className="text-xl font-bold text-navy text-center mb-2">كنائس أخرى</h2>
+                <p className="text-sm text-gray-500 text-center mb-4">الكنائس التي انتقلت إليها بعض الأسر</p>
+                <div className="space-y-3">
+                  {otherChurches.map((c) => (
+                    <ListLink key={c.id} to={`/area/${c.id}`}>
+                      <span>
+                        <span className="text-xl font-bold block">⛪ {areaLabel(c)}</span>
+                        <span className="text-sm text-gray-500">{c.familyCount} أسرة</span>
+                      </span>
+                    </ListLink>
+                  ))}
+                </div>
+              </div>
+            )}
           </>
         )}
       </div>

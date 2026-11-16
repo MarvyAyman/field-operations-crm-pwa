@@ -6,15 +6,33 @@ from .models import (
 
 
 class AreaSerializer(serializers.ModelSerializer):
+    id = serializers.UUIDField(required=False)  # created on the device
+
     class Meta:
         model = Area
         fields = '__all__'
 
+    def validate(self, attrs):
+        kind = attrs.get('kind', getattr(self.instance, 'kind', 'own'))
+        if kind not in ('own', 'other_church'):
+            raise serializers.ValidationError({'kind': ['Must be own or other_church']})
+        label = attrs.get('name') if kind == 'other_church' else attrs.get('area_no')
+        if self.instance is None and not (label or '').strip():
+            raise serializers.ValidationError({'name' if kind == 'other_church' else 'area_no': ['Required']})
+        return attrs
+
 
 class StreetSerializer(serializers.ModelSerializer):
+    id = serializers.UUIDField(required=False)  # created on the device
+
     class Meta:
         model = Street
         fields = '__all__'
+
+    def validate(self, attrs):
+        if self.instance is None and not (attrs.get('name') or '').strip():
+            raise serializers.ValidationError({'name': ['Required']})
+        return attrs
 
 
 class BuildingSerializer(serializers.ModelSerializer):

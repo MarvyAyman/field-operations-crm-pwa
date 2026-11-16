@@ -4,16 +4,31 @@ import { Save, UserPlus, MapPin, Loader2 } from 'lucide-react';
 import { useAuth } from '../auth.jsx';
 import { createRow, updateRow, deleteRow } from '../db';
 import {
-  useTables, newId, inputClass, PHONE_PATTERN, toAsciiDigits, buildingLabel, diffPatch,
+  useTables, newId, inputClass, PHONE_PATTERN, toAsciiDigits, buildingLabel, diffPatch, searchKey, areaLabel,
   lookupsFor, lookupLabel, nextPersonNo, personFieldsFromForm, LOOKUP,
 } from '../data.js';
 import { PageHeader, Field, ErrorText, Loading, NotFound } from '../components/ui.jsx';
 import PersonFields from '../components/PersonFields.jsx';
+import SearchSelect from '../components/SearchSelect.jsx';
 import { getPosition, locationErrorMessage, hasLocation, mapsLink, isAutoMapsLink, WEAK_ACCURACY_M } from '../location.js';
 
 // the lookup value that means "head of the family" (if the list has one)
 const HEAD_RELATION = /رب\s*(ال)?[أاإ]سرة/;
-const NEW_BUILDING = '__new';
+const NEW = '__new';        // a new area / church / street / building typed in the form, created when the family is saved
+const NO_BUILDING = '__none'; // "no building": a hidden placeholder building keeps the family visible under its street
+const PLACEHOLDER_BUILDING = 'بدون رقم';
+const PLACEHOLDER_STREET = 'بدون شارع';
+const isPlaceholder = (b) => Boolean(b) && searchKey(b.house_no) === searchKey(PLACEHOLDER_BUILDING);
+
+// like Field, but a <div>: a <label> would send clicks inside the dropdown list back to the input
+function SField({ label, children }) {
+  return (
+    <div>
+      <span className="block text-navy font-bold mb-1">{label}</span>
+      {children}
+    </div>
+  );
+}
 
 function Section({ title, children }) {
   return (
@@ -55,13 +70,22 @@ export default function AddFamily() {
     const streetId = building?.street_id || params.get('street') || '';
     const street = byId(data.streets, streetId);
     const areaId = street?.area_id || params.get('area') || '';
-    return { building_id: building ? buildingId : '', street_id: street ? streetId : '', area_id: byId(data.areas, areaId) ? areaId : '' };
+    const area = byId(data.areas, areaId);
+    return {
+      building_id: building ? (isPlaceholder(building) ? NO_BUILDING : buildingId) : '',
+      street_id: street ? streetId : '',
+      area_id: area ? areaId : '',
+      moved: original ? Boolean(original.moved) : area?.kind === 'other_church',
+    };
   }, [data.areas, data.streets, data.buildings, original, params]);
 
+  const moved = 'moved' in edits ? edits.moved : defaults.moved;   // the family moved to another church
   const areaId = 'area_id' in edits ? edits.area_id : defaults.area_id;
   const streetId = 'street_id' in edits ? edits.street_id : defaults.street_id;
   const buildingChoice = 'building_id' in edits ? edits.building_id : defaults.building_id;
-  const isNewBuilding = buildingChoice === NEW_BUILDING;
+  const isNewArea = areaId === NEW;
+  const isNewStreet = streetId === NEW;
+  const isNewBuilding = buildingChoice === NEW;
   const building = isNewBuilding ? null : byId(data.buildings, buildingChoice);
 
   // value shown in a field: what the user typed, else the saved value, else the default
@@ -69,6 +93,7 @@ export default function AddFamily() {
     if (key === 'area_id') return areaId;
     if (key === 'street_id') return streetId;
     if (key === 'building_id') return buildingChoice;
+    if (key === 'moved') return moved;
     if (key in edits) return edits[key];
     if (key === 'bnotes') return building?.notes ?? '';
     if (key === 'other_phone') return otherPhoneRow?.phone ?? '';
@@ -77,26 +102,62 @@ export default function AddFamily() {
   };
   const set = (key) => (e) => setEdits((prev) => ({ ...prev, [key]: e.target.value }));
 
-  // choosing a bigger place clears the smaller ones under it
-  const chooseArea = (e) => { setEdits((p) => ({ ...p, area_id: e.target.value, street_id: '', building_id: '' })); setLoc(null); setLocStatus(null); };
-  const chooseStreet = (e) => { setEdits((p) => ({ ...p, street_id: e.target.value, building_id: '' })); setLoc(null); setLocStatus(null); };
-  const chooseBuilding = (e) => { setEdits((p) => ({ ...p, building_id: e.target.value })); setLoc(null); setLocStatus(null); };
+  // Choosing a bigger place clears the smaller ones under it, and the text typed for the old building
+  // (its notes / new house number) is dropped: it belongs to that building, not the new one.
+  const setPlace = (patch) => {
+    setEdits((prev) => {
+      const next = { ...prev };
+      for (const k of ['bnotes', 'new_house_no', 'new_direction']) delete next[k];
+      if ('area_id' in patch || 'moved' in patch) delete next.new_area_name;
+      if ('area_id' in patch || 'street_id' in patch || 'moved' in patch) delete next.new_street_name;
+      return { ...next, ...patch };
+    });
+    setLoc(null);
+    setLocStatus(null);
+  };
+  const chooseMoved = (e) => setPlace({ moved: e.target.checked, area_id: '', street_id: '', building_id: '' });
+  const chooseArea = (v) => setPlace({ area_id: v, street_id: '', building_id: '' });
+  const createArea = (text) => setPlace({ area_id: NEW, new_area_name: text, street_id: '', building_id: '' });
+  const chooseStreet = (v) => setPlace({ street_id: v, building_id: '' });
+  const createStreet = (text) => setPlace({ street_id: NEW, new_street_name: text, building_id: '' });
+  const chooseBuilding = (v) => setPlace({ building_id: v });
+  const createBuilding = (text) => setPlace({ building_id: NEW, new_house_no: text });
 
+  const byLabel = (a, b) => String(a.label).localeCompare(String(b.label), 'ar', { numeric: true });
   const areaOptions = useMemo(
-    () => [...data.areas].sort((a, b) => String(a.area_no ?? '').localeCompare(String(b.area_no ?? ''), 'ar', { numeric: true })),
-    [data.areas],
+    () => data.areas
+      .filter((a) => (moved ? a.kind === 'other_church' : a.kind !== 'other_church'))
+      .map((a) => ({ value: a.id, label: areaLabel(a) }))
+      .sort(byLabel),
+    [data.areas, moved],
   );
   const streetOptions = useMemo(
-    () => data.streets.filter((s) => s.area_id === areaId).sort((a, b) => (a.name || '').localeCompare(b.name || '', 'ar', { numeric: true })),
+    () => data.streets.filter((s) => s.area_id === areaId && searchKey(s.name) !== searchKey(PLACEHOLDER_STREET)).map((s) => ({ value: s.id, label: s.name || '' })).sort(byLabel),
     [data.streets, areaId],
   );
   const buildingOptions = useMemo(
-    () => data.buildings
-      .filter((b) => b.street_id === streetId)
-      .sort((a, b) => String(a.house_no ?? '').localeCompare(String(b.house_no ?? ''), 'ar', { numeric: true })),
+    () => [
+      { value: NO_BUILDING, label: 'بدون مبنى' },
+      ...data.buildings
+        .filter((b) => b.street_id === streetId && !isPlaceholder(b))
+        .map((b) => ({ value: b.id, label: buildingLabel(b) }))
+        .sort(byLabel),
+    ],
     [data.buildings, streetId],
   );
   const contracts = lookupsFor(data.lookup_values, LOOKUP.contract);
+
+  // the place as the user sees it now, and whether it differs from the saved one
+  const chosenArea = byId(data.areas, areaId);
+  const chosenStreet = byId(data.streets, streetId);
+  const areaName = isNewArea ? get('new_area_name') : chosenArea ? areaLabel(chosenArea) : '';
+  const streetName = isNewStreet ? get('new_street_name') : chosenStreet?.name;
+  const placeText = [
+    areaName,
+    streetName,
+    moved ? null : isNewBuilding ? `مبنى ${get('new_house_no') || 'جديد'}` : building ? buildingLabel(building) : (buildingChoice === NO_BUILDING ? 'بدون مبنى' : null),
+  ].filter(Boolean).join(' › ') || '—';
+  const placeTouched = ['area_id', 'street_id', 'building_id', 'moved'].some((k) => k in edits);
 
   if (loading) return <Loading />;
   if (editing && !original) return <NotFound back="/" />;
@@ -112,7 +173,7 @@ export default function AddFamily() {
           : '/';
 
   // ---------- building location (same method as the pin in the building list) ----------
-  const hasBuilding = Boolean(building) || isNewBuilding;
+  const hasBuilding = !moved && (Boolean(building) || isNewBuilding);
   const savedLocation = hasLocation(building);
   const findLocation = async () => {
     setLocStatus({ kind: 'working', text: 'جاري تحديد موقعك... اسمح للتطبيق بالوصول إلى الموقع إذا ظهر طلب الإذن.' });
@@ -152,6 +213,7 @@ export default function AddFamily() {
       membership_no: get('membership_no').trim() || null,
       last_visit_on: get('last_visit_on') || null,
       notes: get('notes').trim() || null,
+      moved,
     };
     const otherPhone = toAsciiDigits(get('other_phone').trim());
     const internalNote = get('internal_note').trim();
@@ -161,9 +223,16 @@ export default function AddFamily() {
       if (phone && !PHONE_PATTERN.test(phone)) return setError('رقم الهاتف غير صحيح');
     }
     const newHouseNo = get('new_house_no').trim();
-    if (isNewBuilding) {
-      if (!streetId) return setError('اختر الشارع قبل إضافة مبنى جديد');
-      if (!newHouseNo) return setError('اكتب رقم المنزل للمبنى الجديد');
+    const newAreaName = get('new_area_name').trim();
+    const newStreetName = get('new_street_name').trim();
+    if (moved) {
+      if (!areaId) return setError('اختر الكنيسة التي انتقلت إليها الأسرة، أو اكتب اسمها لإضافتها');
+    } else if (areaId || streetId || buildingChoice || (editing && original.building_id)) {
+      // the whole place (area > street > building) is saved together, so it must be complete
+      if (!areaId) return setError('اختر المنطقة');
+      if (!streetId) return setError('اختر الشارع، أو اكتب اسمه لإضافته');
+      if (!buildingChoice) return setError('اختر المبنى، أو "بدون مبنى"، أو اكتب رقم مبنى جديد');
+      if (isNewBuilding && !newHouseNo) return setError('اكتب رقم المنزل للمبنى الجديد');
     }
 
     setSaving(true);
@@ -171,18 +240,55 @@ export default function AddFamily() {
       const now = new Date().toISOString();
       const church_id = user?.church_id ?? null;
 
-      // 1) the building: a new one, or the notes / location of the chosen one
-      let buildingId = building?.id ?? null;
+      // 0) the place, from the top down. Anything new is created first, so the outbox sends it before the family.
+      let aId = areaId || null;
+      let sId = streetId || null;
+      const findArea = (name) => data.areas.find((x) => (x.kind === 'other_church') === moved && searchKey(areaLabel(x)) === searchKey(name));
+      if (isNewArea) {
+        const same = findArea(newAreaName);   // typed twice / already there -> reuse, never a duplicate
+        if (same) aId = same.id;
+        else {
+          aId = newId();
+          await createRow('areas', {
+            id: aId, church_id, kind: moved ? 'other_church' : 'own',
+            ...(moved ? { name: newAreaName } : { area_no: newAreaName }), created_at: now, updated_at: now,
+          });
+        }
+      }
+      const ensureStreet = async (name) => {
+        const same = isNewArea ? null : data.streets.find((x) => x.area_id === aId && searchKey(x.name) === searchKey(name));
+        if (same) return same.id;
+        const sid = newId();
+        await createRow('streets', { id: sid, church_id, area_id: aId, name, created_at: now, updated_at: now });
+        return sid;
+      };
+      if (isNewStreet) sId = await ensureStreet(newStreetName);
+      else if (moved && aId && !sId) sId = await ensureStreet(PLACEHOLDER_STREET); // moved, street unknown
+      const ensurePlaceholderBuilding = async () => {
+        const same = data.buildings.find((x) => x.street_id === sId && isPlaceholder(x));
+        if (same) return same.id;
+        const bid = newId();
+        await createRow('buildings', { id: bid, church_id, street_id: sId, house_no: PLACEHOLDER_BUILDING, created_at: now, updated_at: now });
+        return bid;
+      };
+
+      // 1) the building: a new one, the hidden "no building" one, or the notes / location of the chosen one
+      let buildingId = null;
       const buildingNotes = get('bnotes').trim() || null;
       const locFields = loc ? { lat: loc.lat, lng: loc.lng, location_accuracy: loc.accuracy } : {};
-      if (isNewBuilding) {
+      if (moved) {
+        if (sId) buildingId = await ensurePlaceholderBuilding();
+      } else if (isNewBuilding) {
         buildingId = newId();
         await createRow('buildings', {
-          id: buildingId, church_id, street_id: streetId, house_no: newHouseNo,
+          id: buildingId, church_id, street_id: sId, house_no: newHouseNo,
           direction: get('new_direction').trim() || null, notes: buildingNotes, ...locFields,
           ...(loc ? { maps_url: mapsLink(loc.lat, loc.lng) } : {}), created_at: now, updated_at: now,
         });
+      } else if (buildingChoice === NO_BUILDING) {
+        buildingId = await ensurePlaceholderBuilding();
       } else if (building) {
+        buildingId = building.id;
         const patch = diffPatch(building, { notes: buildingNotes, ...locFields });
         if (loc && isAutoMapsLink(building.maps_url)) patch.maps_url = mapsLink(loc.lat, loc.lng);
         if (Object.keys(patch).length) await updateRow('buildings', building.id, patch);
@@ -250,31 +356,62 @@ export default function AddFamily() {
       <PageHeader title={editing ? 'تعديل بيانات الأسرة' : 'إضافة أسرة جديدة'} back={back} />
 
       <form className="p-4 space-y-6" onSubmit={submit} noValidate>
+        {/* ================= حالة الأسرة (أول سؤال: يحدد باقي الأسئلة) ================= */}
+        <label className="flex items-center gap-3 p-4 rounded-xl bg-white shadow-sm border-2 border-gold/40 cursor-pointer">
+          <input type="checkbox" checked={moved} onChange={chooseMoved} className="w-6 h-6 accent-maroon" />
+          <span className="font-bold text-navy">الأسرة انتقلت إلى كنيسة أخرى</span>
+        </label>
+
         {/* ================= العنوان والموقع ================= */}
-        <Section title="العنوان والموقع">
-          <Field label="رقم المنطقة">
-            <select value={areaId} onChange={chooseArea} className={inputClass}>
-              <option value="">— اختر المنطقة —</option>
-              {areaOptions.map((a) => <option key={a.id} value={a.id}>منطقة {a.area_no}</option>)}
-            </select>
-          </Field>
+        <Section title={moved ? 'الكنيسة التي انتقلت إليها' : 'العنوان والموقع'}>
+          <SField label={moved ? 'اسم الكنيسة' : 'رقم المنطقة'}>
+            <SearchSelect
+              options={areaOptions}
+              value={areaId}
+              valueLabel={isNewArea ? get('new_area_name') : ''}
+              onChange={chooseArea}
+              onCreate={createArea}
+              createLabel={moved ? 'ككنيسة جديدة' : 'كمنطقة جديدة'}
+              placeholder={moved ? '— ابحث عن الكنيسة أو اكتب اسمها —' : '— اختر المنطقة —'}
+            />
+          </SField>
 
-          <Field label="اسم الشارع">
-            <select value={streetId} onChange={chooseStreet} disabled={!areaId} className={`${inputClass} disabled:opacity-60`}>
-              <option value="">{areaId ? '— اختر الشارع —' : '— اختر المنطقة أولاً —'}</option>
-              {streetOptions.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
-            </select>
-          </Field>
+          <SField label={moved ? 'الشارع (اختياري)' : 'اسم الشارع'}>
+            <SearchSelect
+              options={streetOptions}
+              value={streetId}
+              valueLabel={isNewStreet ? get('new_street_name') : ''}
+              onChange={chooseStreet}
+              onCreate={createStreet}
+              createLabel="كشارع جديد"
+              disabled={!areaId}
+              placeholder={areaId ? '— ابحث عن الشارع أو اكتب اسمه —' : (moved ? '— اختر الكنيسة أولاً —' : '— اختر المنطقة أولاً —')}
+            />
+          </SField>
 
-          <Field label="المبنى (رقم المنزل / الاتجاه)">
-            <select value={buildingChoice} onChange={chooseBuilding} disabled={!streetId} className={`${inputClass} disabled:opacity-60`}>
-              <option value="">{streetId ? '— بدون مبنى —' : '— اختر الشارع أولاً —'}</option>
-              {buildingOptions.map((b) => <option key={b.id} value={b.id}>{buildingLabel(b)}</option>)}
-              {streetId && <option value={NEW_BUILDING}>+ مبنى جديد</option>}
-            </select>
-          </Field>
+          {!moved && (
+            <SField label="المبنى (رقم المنزل / الاتجاه)">
+              <SearchSelect
+                options={buildingOptions}
+                value={buildingChoice}
+                valueLabel={isNewBuilding ? `مبنى ${get('new_house_no')}` : ''}
+                onChange={chooseBuilding}
+                onCreate={createBuilding}
+                createLabel="كمبنى جديد"
+                allowClear={false}
+                disabled={!streetId}
+                placeholder={streetId ? '— اختر المبنى أو اكتب رقمه —' : '— اختر الشارع أولاً —'}
+              />
+            </SField>
+          )}
 
-          {isNewBuilding && (
+          {editing && placeTouched && areaId && (
+            <p className="p-3 rounded-lg bg-amber-50 text-amber-800 text-sm">
+              ستُنقل الأسرة إلى: {placeText}
+            </p>
+          )}
+
+          {isNewBuilding && !moved && (
             <div className="grid grid-cols-2 gap-3 p-3 rounded-xl bg-gold/10">
               <Field label="رقم المنزل *">
                 <input type="text" value={get('new_house_no')} onChange={set('new_house_no')} className={inputClass} />
@@ -285,14 +422,16 @@ export default function AddFamily() {
             </div>
           )}
 
-          <div className="grid grid-cols-2 gap-3">
-            <Field label="رقم الدور">
-              <input type="text" value={get('floor_no')} onChange={set('floor_no')} className={inputClass} />
-            </Field>
-            <Field label="رقم الشقة">
-              <input type="text" value={get('apartment_no')} onChange={set('apartment_no')} className={inputClass} />
-            </Field>
-          </div>
+          {!moved && (
+            <div className="grid grid-cols-2 gap-3">
+              <Field label="رقم الدور">
+                <input type="text" value={get('floor_no')} onChange={set('floor_no')} className={inputClass} />
+              </Field>
+              <Field label="رقم الشقة">
+                <input type="text" value={get('apartment_no')} onChange={set('apartment_no')} className={inputClass} />
+              </Field>
+            </div>
+          )}
 
           {hasBuilding && (
             <>

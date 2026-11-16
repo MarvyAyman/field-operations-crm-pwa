@@ -54,6 +54,8 @@ export const OTHER = '__other'; // the "آخر..." choice of a list
 export function personFormDefault(person, key) {
   if (key === 'confessor_id') return person?.confessor_id || (person?.extra?.confessor_other ? OTHER : '');
   if (key === 'confessor_other') return person?.extra?.confessor_other ?? '';
+  // more than one confessor: the first one is the column, the others are a list in extra.confessor_more ([{id}] or [{other}])
+  if (key === 'confessor_more') return (person?.extra?.confessor_more || []).map((c) => ({ v: c.id || OTHER, other: c.other || '' }));
   if (key === 'relation_id') return person?.relation_id || (person?.extra?.relation_other ? OTHER : '');
   if (key === 'relation_other') return person?.extra?.relation_other ?? '';
   if (key === 'phone' || key === 'phone2' || key === 'notes') return person?.extra?.[key] ?? '';
@@ -69,6 +71,7 @@ export function personFieldsFromForm(get, existingExtra = null) {
   const extra = { ...(existingExtra || {}) };
   delete extra.confessor_other;
   delete extra.relation_other;
+  delete extra.confessor_more;
   // the person's own phones and notes (only the person form has these inputs; keep what is stored otherwise)
   for (const k of ['phone', 'phone2', 'notes']) {
     const v = get(k);
@@ -76,6 +79,10 @@ export function personFieldsFromForm(get, existingExtra = null) {
     const t = k === 'notes' ? String(v).trim() : toAsciiDigits(String(v).trim());
     if (t) extra[k] = t; else delete extra[k];
   }
+  const more = (get('confessor_more') || [])
+    .map((c) => (c.v === OTHER ? { other: (c.other || '').trim() } : { id: c.v }))
+    .filter((c) => c.id || c.other);
+  if (more.length) extra.confessor_more = more;
   if (other && get('confessor_other').trim()) extra.confessor_other = get('confessor_other').trim();
   if (relOther && get('relation_other').trim()) extra.relation_other = get('relation_other').trim();
   return {
@@ -90,6 +97,16 @@ export function personFieldsFromForm(get, existingExtra = null) {
   };
 }
 
+// "ابونا فلان، ابونا علان" : every confessor of a person (the main one, then the others)
+export function confessorNames(person, lookups) {
+  const byId = new Map(lookups.map((l) => [l.id, l]));
+  const name = (id) => { const l = byId.get(id); return l ? lookupLabel(l, person.gender) : ''; };
+  return [
+    name(person.confessor_id) || person.extra?.confessor_other,
+    ...(person.extra?.confessor_more || []).map((c) => (c.id ? name(c.id) : c.other)),
+  ].filter(Boolean);
+}
+
 // The label of a lookup value (feminine form for a woman, when the list has one)
 export const lookupLabel = (l, gender) => (gender === 'female' && l.label_f) || l.label;
 
@@ -101,6 +118,23 @@ export function nextPersonNo(people, familyId) {
     .filter(Number.isFinite);
   return String(Math.max(0, ...nums) + 1);
 }
+
+// ---- Arabic-friendly search key: أ/إ/آ=ا ، ي=ى ، ة=ه ، ؤ=و ، ئ=ي ، no tashkeel / tatweel, Arabic digits -> 0-9, lower case
+export function searchKey(text) {
+  return toAsciiDigits(String(text ?? ''))
+    .replace(/[\u064B-\u065F\u0670\u0640]/g, '')
+    .replace(/[أإآٱ]/g, 'ا')
+    .replace(/[ىی]/g, 'ي')
+    .replace(/ة/g, 'ه')
+    .replace(/ؤ/g, 'و')
+    .replace(/ئ/g, 'ي')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .toLowerCase();
+}
+
+// "منطقة 7" for our own areas, the church name for another church's area
+export const areaLabel = (a) => (a?.kind === 'other_church' ? (a.name || 'كنيسة') : `منطقة ${a?.area_no ?? ''}`);
 
 export const buildingLabel = (b) =>
   `مبنى ${b.house_no ?? ''}${b.direction ? ` — ${b.direction}` : ''}`.trim();
