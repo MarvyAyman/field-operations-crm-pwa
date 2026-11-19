@@ -58,7 +58,13 @@ export function buildIndex(data) {
     }
     for (const v of visitsOf.get(f.id) || []) segs.push(seg('notes', 3, 'زيارة', v.notes));
     const list = segs.filter(Boolean);
-    families.push({ id: f.id, name: f.family_name || '', address, pending: Boolean(f._pending), segs: list, all: list.map((x) => x.key).join('\n') });
+    const joined = (kinds) => list.filter((x) => kinds.includes(x.kind)).map((x) => x.key).join('\n');
+    families.push({
+      id: f.id, name: f.family_name || '', address, pending: Boolean(f._pending), segs: list,
+      all: list.map((x) => x.key).join('\n'),
+      // the text each filter looks in
+      by: { families: joined(['name']), people: joined(['person', 'detail']), notes: joined(['notes', 'detail']), phones: joined(['phone', 'detail']) },
+    });
   }
 
   const places = [];
@@ -74,48 +80,161 @@ export function buildIndex(data) {
       key: keyOf(`${b.house_no} ${b.direction || ''} ${b.notes || ''} ${s?.name || ''}`),
     });
   }
-  return { families, places };
+  // every distinct word (3+ letters) in the database: used to find the closest words to a mistyped one
+  const vocab = new Set();
+  const addWords = (k) => { for (const w of k.split(/\s+/)) if (w.length >= 3 && !/^\d+$/.test(w)) vocab.add(w); };
+  for (const f of families) for (const sg of f.segs) addWords(sg.key);
+  for (const p of places) addWords(p.key);
+  return { families, places, vocab: [...vocab] };
 }
 
-export const tokensOf = (query) => searchKey(query).split(' ').filter(Boolean);
+// the search words: normalised, a leading "ال" is dropped ("الامير" finds "امير" and "الأمير")
+export const tokensOf = (query) => searchKey(query).split(' ').filter(Boolean).map((t) => (t.startsWith('ال') && t.length > 4 ? t.slice(2) : t));
 
 const hasWordStart = (key, tok) => key.startsWith(tok) || key.includes(` ${tok}`);
 
-export function runSearch(index, query, { maxFamilies = 40, maxPlaces = 6 } = {}) {
-  const tokens = tokensOf(query);
-  if (!tokens.length) return null;
+// edit distance (a swap of two neighbouring letters counts as one mistake), giving up early once above `max`
+function within(a, b, max) {
+  if (Math.abs(a.length - b.length) > max) return Infinity;
+  let prev2 = null;
+  let prev = Array.from({ length: b.length + 1 }, (_, i) => i);
+  for (let i = 1; i <= a.length; i++) {
+    const cur = [i];
+    let rowMin = i;
+    for (let j = 1; j <= b.length; j++) {
+      let v = Math.min(prev[j] + 1, cur[j - 1] + 1, prev[j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1));
+      if (prev2 && i > 1 && j > 1 && a[i - 1] === b[j - 2] && a[i - 2] === b[j - 1]) v = Math.min(v, prev2[j - 2] + 1);
+      cur[j] = v;
+      if (v < rowMin) rowMin = v;
+    }
+    if (rowMin > max) return Infinity;
+    prev2 = prev;
+    prev = cur;
+  }
+  return prev[b.length] <= max ? prev[b.length] : Infinity;
+}
+
+// for each search word (5+ letters): the closest words that really exist in the data
+function closeWords(vocab, tokens, minLen) {
+  const alts = new Map();
+  for (const t of tokens) {
+    if (t.length < minLen) continue;
+    const max = t.length >= 7 ? 2 : 1;
+    const found = [];
+    for (const w of vocab) {
+      if (w === t) continue;
+      const d = within(t, w, max);
+      if (d <= max) found.push([d, w]);
+    }
+    found.sort((x, y) => x[0] - y[0]);
+    if (found.length) alts.set(t, found.slice(0, 25).map((x) => x[1]));
+  }
+  return alts;
+}
+
+const FILTER_KINDS = {
+  all: null, families: ['name'], people: ['person', 'detail'], notes: ['notes', 'detail'], phones: ['phone', 'detail'],
+};
+
+function collectFamilies(index, tokens, alts, filter) {
+  const kinds = FILTER_KINDS[filter];
+  const found = (text, t) => text.includes(t) || (alts?.get(t) || []).some((w) => text.includes(w));
   const out = [];
   for (const f of index.families) {
-    if (!tokens.every((t) => f.all.includes(t))) continue;
+    const text = kinds ? f.by[filter] : f.all;
+    if (!tokens.every((t) => found(text, t))) continue;
     let score = 0;
     for (const t of tokens) {
       let best = 9;
       for (const sg of f.segs) {
-        if (!sg.key.includes(t)) continue;
-        const w = sg.weight + (hasWordStart(sg.key, t) ? 0 : 0.5);
-        if (w < best) best = w;
+        if (kinds && !kinds.includes(sg.kind)) continue;
+        const words = [t, ...(alts?.get(t) || [])];
+        words.forEach((w, k) => {
+          if (!sg.key.includes(w)) return;
+          const v = sg.weight + (hasWordStart(sg.key, w) ? 0 : 0.5) + (k > 0 ? 1 : 0);
+          if (v < best) best = v;
+        });
       }
       score += best;
     }
     out.push({ f, score });
   }
   out.sort((a, b) => a.score - b.score || a.f.name.localeCompare(b.f.name, 'ar'));
-  const families = out.slice(0, maxFamilies).map(({ f }) => {
-    // why did it match? the segments (other than name / address, which the row shows anyway) holding the words
-    const snippets = [];
-    const need = tokens.filter((t) => !searchKey(f.name).includes(t));
-    for (const t of need) {
-      const sg = f.segs.find((x) => x.kind !== 'name' && x.kind !== 'address' && x.key.includes(t));
-      if (sg && !snippets.includes(sg)) snippets.push(sg);
-    }
-    const shown = snippets.filter((x) => !(x.kind === 'person' && snippets.some((y) => y.kind === 'detail' && y.label === x.text)));
-    return { id: f.id, name: f.name, address: f.address, pending: f.pending, snippets: shown.slice(0, 3) };
-  });
-  const placeHits = { area: [], street: [], building: [] };
-  for (const p of index.places) {
-    if (placeHits[p.type].length < maxPlaces && tokens.every((t) => p.key.includes(t))) placeHits[p.type].push(p);
+  return out;
+}
+
+// why did it match? the segments (other than name / address, which the row shows anyway) holding the words
+function describe(f, tokens, alts, filter) {
+  const kinds = FILTER_KINDS[filter];
+  const snippets = [];
+  for (const t of tokens) {
+    const words = [t, ...(alts?.get(t) || [])];
+    if (filter !== 'people' && filter !== 'families' && words.some((w) => searchKey(f.name).includes(w))) continue;
+    if (filter === 'families') continue;
+    const sg = f.segs.find((x) => x.kind !== 'name' && x.kind !== 'address' && (!kinds || kinds.includes(x.kind)) && words.some((w) => x.key.includes(w)));
+    if (sg && !snippets.includes(sg)) snippets.push(sg);
   }
-  return { tokens, total: out.length, families, areas: placeHits.area, streets: placeHits.street, buildings: placeHits.building };
+  const shown = snippets.filter((x) => !(x.kind === 'person' && snippets.some((y) => y.kind === 'detail' && y.label === x.text)));
+  return { id: f.id, name: f.name, address: f.address, pending: f.pending, snippets: shown.slice(0, 3) };
+}
+
+// filter: all | families | people | notes | phones | areas | streets | buildings
+export function runSearch(index, query, { filter = 'all', maxFamilies = 40, maxPlaces = 6 } = {}) {
+  const tokens = tokensOf(query);
+  if (!tokens.length) return null;
+  const placeType = { areas: 'area', streets: 'street', buildings: 'building' }[filter];
+  const wantFamilies = !placeType;
+  const wantPlaces = filter === 'all' || Boolean(placeType);
+  const limitPlaces = placeType ? 40 : maxPlaces;
+
+  const placesFor = (alts) => {
+    const hits = { area: [], street: [], building: [] };
+    const found = (text, t) => text.includes(t) || (alts?.get(t) || []).some((w) => text.includes(w));
+    for (const p of index.places) {
+      if (placeType && p.type !== placeType) continue;
+      if (hits[p.type].length < limitPlaces && tokens.every((t) => found(p.key, t))) hits[p.type].push(p);
+    }
+    return hits;
+  };
+
+  const exact = wantFamilies ? collectFamilies(index, tokens, null, filter) : [];
+  let hits = wantPlaces ? placesFor(null) : { area: [], street: [], building: [] };
+  const placeCount = hits.area.length + hits.street.length + hits.building.length;
+
+  // few exact results: also offer the closest words in the data (typos, different spelling)
+  let similar = [];
+  let alts = null;
+  if (exact.length + placeCount < 8) {
+    // short words (4 letters) are only corrected when they come with other words, or when nothing else was found
+    const tryAlts = (minLen) => {
+      const a = closeWords(index.vocab, tokens, minLen);
+      if (!a.size) return null;
+      const have = new Set(exact.map((x) => x.f.id));
+      const fam = wantFamilies ? collectFamilies(index, tokens, a, filter).filter((x) => !have.has(x.f.id)) : [];
+      const more = wantPlaces ? placesFor(a) : null;
+      const extraPlaces = more ? Object.keys(more).reduce((n, k) => n + more[k].filter((x) => !hits[k].some((h) => h.id === x.id)).length, 0) : 0;
+      return fam.length || extraPlaces ? { a, fam, more } : null;
+    };
+    const got = tryAlts(tokens.length > 1 ? 4 : 5) || (exact.length + placeCount === 0 ? tryAlts(4) : null);
+    if (got) {
+      alts = got.a;
+      similar = got.fam;
+      if (got.more) {
+        for (const k of Object.keys(hits)) {
+          const ids = new Set(hits[k].map((x) => x.id));
+          hits[k] = [...hits[k], ...got.more[k].filter((x) => !ids.has(x.id))];
+        }
+      }
+    }
+  }
+  const words = [...tokens, ...[...(alts?.values() || [])].flat()];
+  return {
+    tokens: words,
+    total: exact.length,
+    families: exact.slice(0, maxFamilies).map(({ f }) => describe(f, tokens, null, filter)),
+    similar: similar.slice(0, 15).map(({ f }) => describe(f, tokens, alts, filter)),
+    areas: hits.area, streets: hits.street, buildings: hits.building,
+  };
 }
 
 // normalised text with a map back to the original characters (to highlight the matched words)

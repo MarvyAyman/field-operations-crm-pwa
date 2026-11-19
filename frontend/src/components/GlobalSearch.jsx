@@ -10,12 +10,24 @@ function Hl({ text, tokens, max }) {
     p.hit ? <mark key={i} className="bg-gold/40 text-inherit rounded px-0.5">{p.text}</mark> : <span key={i}>{p.text}</span>);
 }
 
+const FILTERS = [
+  ['all', 'الكل'], ['families', 'الأسر'], ['people', 'الأفراد'], ['streets', 'الشوارع'],
+  ['buildings', 'المباني'], ['areas', 'المناطق'], ['notes', 'الملاحظات'], ['phones', 'التليفونات'],
+];
+const HINTS = {
+  all: 'اكتب أي جزء من اسم أسرة أو فرد (الزوجة، الأبناء…) أو شارع أو مبنى أو رقم تليفون أو ملاحظة.',
+  families: 'ابحثي في أسماء الأسر فقط.', people: 'ابحثي في أسماء الأفراد (الزوجة والأبناء وغيرهم) ووظائفهم.',
+  streets: 'ابحثي عن شارع.', buildings: 'ابحثي عن رقم مبنى أو اتجاهه.', areas: 'ابحثي عن منطقة أو كنيسة.',
+  notes: 'ابحثي في ملاحظات الأسر والعمارات والأفراد والزيارات.', phones: 'ابحثي برقم تليفون (بأي شكل كتابة).',
+};
+
 function Panel({ onClose }) {
   const { data, loading } = useTables(['areas', 'streets', 'buildings', 'families', 'people', 'family_phones', 'family_internal_notes', 'visits', 'lookup_values']);
   const index = useMemo(() => (loading ? null : buildIndex(data)), [data, loading]);
   const [query, setQuery] = useState('');
+  const [filter, setFilter] = useState('all');
   const deferred = useDeferredValue(query);
-  const result = useMemo(() => (index ? runSearch(index, deferred) : null), [index, deferred]);
+  const result = useMemo(() => (index ? runSearch(index, deferred, { filter }) : null), [index, deferred, filter]);
   const [active, setActive] = useState(0);
   const inputRef = useRef(null);
   const listRef = useRef(null);
@@ -26,6 +38,7 @@ function Panel({ onClose }) {
     if (!result) return [];
     return [
       ...result.families.map((f) => ({ ...f, kind: 'family', to: `/family/${f.id}` })),
+      ...result.similar.map((f) => ({ ...f, kind: 'family', to: `/family/${f.id}` })),
       ...result.areas.map((p) => ({ ...p, kind: 'place', to: `/area/${p.id}` })),
       ...result.streets.map((p) => ({ ...p, kind: 'place', to: `/street/${p.id}` })),
       ...result.buildings.map((p) => ({ ...p, kind: 'place', to: `/building/${p.id}` })),
@@ -88,7 +101,9 @@ function Panel({ onClose }) {
       <div className="space-y-2">{list.map((it) => row(it, n++))}</div>
     </section>
   );
-  const fams = items.filter((i) => i.kind === 'family');
+  const nExact = result?.families.length ?? 0;
+  const fams = items.filter((i) => i.kind === 'family').slice(0, nExact);
+  const similar = items.filter((i) => i.kind === 'family').slice(nExact);
   const pick = (type) => items.filter((i) => i.kind === 'place' && i.to.startsWith(`/${type}/`));
 
   return (
@@ -111,16 +126,31 @@ function Panel({ onClose }) {
           </div>
           <button type="button" onClick={onClose} className="p-3 rounded-full bg-white/10" aria-label="إغلاق البحث"><X className="w-5 h-5" /></button>
         </div>
+        <div role="group" aria-label="نوع البحث" className="max-w-2xl mx-auto mt-3 flex gap-2 overflow-x-auto whitespace-nowrap [scrollbar-width:none]">
+          {FILTERS.map(([id, label]) => (
+            <button
+              key={id}
+              type="button"
+              aria-pressed={filter === id}
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={() => { setFilter(id); setActive(0); inputRef.current?.focus(); }}
+              className={`shrink-0 rounded-full px-4 py-2 text-sm font-bold ${filter === id ? 'bg-gold text-navy' : 'bg-white/10 text-white/90 active:bg-white/25'}`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
       </header>
       <div ref={listRef} className="flex-1 overflow-y-auto p-4">
         <div className="max-w-2xl mx-auto space-y-5">
           {loading && <p className="text-center text-gray-500">جاري التحميل...</p>}
           {!loading && !result && (
-            <p className="text-center text-gray-500 mt-8">اكتب أي جزء من اسم أسرة أو فرد (الزوجة، الأبناء…) أو شارع أو مبنى أو رقم تليفون أو ملاحظة.<br />يمكن كتابة أكثر من كلمة بأي ترتيب.</p>
+            <p className="text-center text-gray-500 mt-8">{HINTS[filter]}<br />يمكن كتابة أكثر من كلمة بأي ترتيب، والبحث يتحمّل أخطاء الكتابة.</p>
           )}
           {result && items.length === 0 && <p className="text-center text-gray-500 mt-8">لا توجد نتائج</p>}
           {result && result.total > fams.length && <p className="text-xs text-gray-500">{result.total} أسرة مطابقة، أول {fams.length} فقط — أضف كلمة لتضييق البحث.</p>}
           {section(`الأسر (${result?.total ?? 0})`, fams)}
+          {section('نتائج قريبة من كلامك', similar)}
           {section('المناطق والكنائس', pick('area'))}
           {section('الشوارع', pick('street'))}
           {section('المباني', pick('building'))}
