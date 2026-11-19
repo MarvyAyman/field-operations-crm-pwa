@@ -139,6 +139,16 @@ export const areaLabel = (a) => (a?.kind === 'other_church' ? (a.name || 'كني
 export const buildingLabel = (b) =>
   `مبنى ${b.house_no ?? ''}${b.direction ? ` — ${b.direction}` : ''}`.trim();
 
+// crumbs for a place: area / street / building that are known (a moved family may have fewer)
+export function placeCrumbs({ area, street, building }) {
+  return [
+    { to: '/', home: true },
+    area && { to: `/area/${area.id}`, label: areaLabel(area) },
+    street && { to: `/street/${street.id}`, label: street.name },
+    building && { to: `/building/${building.id}`, label: buildingLabel(building) },
+  ].filter(Boolean);
+}
+
 // family id -> date of its newest visit (computed from the local visits)
 export function lastVisitByFamily(visits) {
   const map = new Map();

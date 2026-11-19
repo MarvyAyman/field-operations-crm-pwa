@@ -3,7 +3,7 @@ import { Link, useNavigate, useParams } from 'react-router-dom';
 import { Pencil, MapPin } from 'lucide-react';
 import { useAuth } from '../auth.jsx';
 import { deleteRow } from '../db';
-import { useTables, buildingLabel, lastVisitByFamily } from '../data.js';
+import { useTables, buildingLabel, lastVisitByFamily, placeCrumbs } from '../data.js';
 import { PageHeader, ListLink, Loading, NotFound, PendingBadge, AddFamilyFab } from '../components/ui.jsx';
 
 // Families living in one building
@@ -11,7 +11,7 @@ export default function Building() {
   const { buildingId } = useParams();
   const navigate = useNavigate();
   const { runSync } = useAuth();
-  const { data, loading } = useTables(['streets', 'buildings', 'families', 'visits']);
+  const { data, loading } = useTables(['areas', 'streets', 'buildings', 'families', 'visits']);
 
   const building = data.buildings.find((b) => b.id === buildingId);
   const street = data.streets.find((s) => s.id === building?.street_id);
@@ -46,6 +46,7 @@ export default function Building() {
         title={buildingLabel(building)}
         subtitle={street?.name}
         back={street ? `/street/${street.id}` : '/'}
+        crumbs={placeCrumbs({ area: data.areas.find((a) => a.id === street?.area_id), street })}
       />
 
       <div className="p-4 space-y-3">

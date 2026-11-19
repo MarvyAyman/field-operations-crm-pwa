@@ -1,15 +1,15 @@
-import { useMemo, useState } from 'react';
+import { useMemo } from 'react';
 import { Search, LogOut, RefreshCw, AlertTriangle } from 'lucide-react';
 import { useAuth } from '../auth.jsx';
 import { discardFailed } from '../db';
-import { useTables, useOutboxCounts, toAsciiDigits, areaLabel } from '../data.js';
-import { ListLink, PendingBadge, AddFamilyFab } from '../components/ui.jsx';
+import { useTables, useOutboxCounts, areaLabel } from '../data.js';
+import { ListLink, AddFamilyFab } from '../components/ui.jsx';
+import { openGlobalSearch } from '../searchIndex.js';
 
 export default function Home() {
   const { logout, runSync, syncing, syncError } = useAuth();
   const { data, loading } = useTables(['areas', 'streets', 'buildings', 'families']);
   const counts = useOutboxCounts();
-  const [query, setQuery] = useState('');
 
   // families per area  (family -> building -> street -> area)
   const areas = useMemo(() => {
@@ -26,19 +26,6 @@ export default function Home() {
   }, [data]);
   const ownAreas = useMemo(() => areas.filter((a) => a.kind !== 'other_church'), [areas]);
   const otherChurches = useMemo(() => areas.filter((a) => a.kind === 'other_church'), [areas]);
-
-  // search by name / phone / apartment, across ALL regions, works offline
-  const results = useMemo(() => {
-    const q = toAsciiDigits(query.trim()).toLowerCase();
-    if (!q) return null;
-    return data.families
-      .filter((f) =>
-        [f.family_name, f.primary_phone, f.landline, f.apartment_no, f.membership_no]
-          .filter(Boolean)
-          .some((v) => toAsciiDigits(String(v)).toLowerCase().includes(q))
-      )
-      .slice(0, 30);
-  }, [data.families, query]);
 
   const handleLogout = () => {
     // logging out wipes this device, so warn if something was not sent yet
@@ -82,14 +69,14 @@ export default function Home() {
         </div>
         <h1 className="text-2xl font-bold">الافتقاد الميداني</h1>
         <div className="mt-4 relative max-w-md mx-auto">
-          <input
-            type="search"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder="ابحث بالاسم أو رقم الهاتف"
-            className="w-full p-3 pr-10 rounded-xl text-navy bg-white focus:outline-none"
-          />
-          <Search className="absolute right-3 top-3 text-gray-400 w-5 h-5" />
+          <button
+            type="button"
+            onClick={openGlobalSearch}
+            className="w-full p-3 pr-10 rounded-xl text-gray-500 bg-white text-right"
+          >
+            ابحث في كل شيء: اسم، شارع، مبنى، تليفون، ملاحظة
+          </button>
+          <Search className="absolute right-3 top-3 text-gray-400 w-5 h-5 pointer-events-none" />
         </div>
         {syncing && (
           <p className="mt-3 text-sm flex items-center justify-center gap-2">
@@ -116,22 +103,7 @@ export default function Home() {
           </div>
         )}
 
-        {results ? (
-          // ---------- search results ----------
-          <div className="space-y-3">
-            <h2 className="text-lg font-bold text-navy text-center mb-2">نتائج البحث ({results.length})</h2>
-            {results.length === 0 && <p className="text-center text-gray-500">لا توجد نتائج</p>}
-            {results.map((f) => (
-              <ListLink key={f.id} to={`/family/${f.id}`}>
-                <span className="font-bold text-lg">
-                  {f.family_name}
-                  <PendingBadge row={f} />
-                </span>
-                <span className="text-sm text-gray-500" dir="ltr">{f.primary_phone}</span>
-              </ListLink>
-            ))}
-          </div>
-        ) : (
+        {(
           // ---------- regions ----------
           <>
             <h2 className="text-xl font-bold text-navy text-center mb-6">اختيار المنطقة</h2>

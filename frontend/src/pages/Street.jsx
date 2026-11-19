@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { Plus, MapPin, Navigation, Loader2, X } from 'lucide-react';
-import { useTables, buildingLabel } from '../data.js';
+import { useTables, buildingLabel, placeCrumbs } from '../data.js';
 import { PageHeader, ListLink, Loading, NotFound, PendingBadge, AddFamilyFab } from '../components/ui.jsx';
 import { useLocationCapture } from '../useLocationCapture.js';
 import { hasLocation, mapsLink } from '../location.js';
@@ -75,7 +75,7 @@ function BuildingRow({ b }) {
 // Buildings of one street
 export default function Street() {
   const { streetId } = useParams();
-  const { data, loading } = useTables(['streets', 'buildings', 'families']);
+  const { data, loading } = useTables(['areas', 'streets', 'buildings', 'families']);
 
   const street = data.streets.find((s) => s.id === streetId);
 
@@ -93,7 +93,7 @@ export default function Street() {
 
   return (
     <div className="pb-28">
-      <PageHeader title={street.name} subtitle={`${buildings.length} مبنى`} back={`/area/${street.area_id}`} />
+      <PageHeader title={street.name} subtitle={`${buildings.length} مبنى`} back={`/area/${street.area_id}`} crumbs={placeCrumbs({ area: data.areas.find((a) => a.id === street.area_id) })} />
       <div className="p-4 space-y-3">
         <Link
           to={`/building/add?street=${streetId}`}

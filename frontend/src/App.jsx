@@ -3,6 +3,7 @@ import { WifiOff } from 'lucide-react';
 import { AuthProvider, useAuth } from './auth.jsx';
 import { useOnline } from './online.js';
 import UpdatePrompt from './components/UpdatePrompt.jsx';
+import GlobalSearch from './components/GlobalSearch.jsx';
 import Login from './pages/Login';
 import Home from './pages/Home';
 import Area from './pages/Area';
@@ -42,6 +43,7 @@ function App() {
       <BrowserRouter>
         <OfflineBanner />
         <UpdatePrompt />
+        <GlobalSearch />
         <Routes>
           <Route path="/login" element={<Login />} />
           <Route path="/" element={protect(<Home />)} />

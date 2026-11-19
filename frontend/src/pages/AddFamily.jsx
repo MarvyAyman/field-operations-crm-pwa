@@ -15,10 +15,11 @@ import { getPosition, locationErrorMessage, hasLocation, mapsLink, isAutoMapsLin
 // the lookup value that means "head of the family" (if the list has one)
 const HEAD_RELATION = /رب\s*(ال)?[أاإ]سرة/;
 const NEW = '__new';        // a new area / church / street / building typed in the form, created when the family is saved
-const NO_BUILDING = '__none'; // "no building": a hidden placeholder building keeps the family visible under its street
-const PLACEHOLDER_BUILDING = 'بدون رقم';
-const PLACEHOLDER_STREET = 'بدون شارع';
-const isPlaceholder = (b) => Boolean(b) && searchKey(b.house_no) === searchKey(PLACEHOLDER_BUILDING);
+// street / building left empty are saved as an ordinary, visible "غير محدد" (older versions used "بدون شارع" / "بدون رقم")
+const UNKNOWN = 'غير محدد';
+const UNKNOWN_NAMES = [UNKNOWN, 'بدون رقم', 'بدون شارع'].map(searchKey);
+const isUnknownName = (n) => UNKNOWN_NAMES.includes(searchKey(n));
+const isPlaceholder = (b) => Boolean(b) && isUnknownName(b.house_no);
 
 // like Field, but a <div>: a <label> would send clicks inside the dropdown list back to the input
 function SField({ label, children }) {
@@ -72,7 +73,7 @@ export default function AddFamily() {
     const areaId = street?.area_id || params.get('area') || '';
     const area = byId(data.areas, areaId);
     return {
-      building_id: building ? (isPlaceholder(building) ? NO_BUILDING : buildingId) : '',
+      building_id: building ? buildingId : '',
       street_id: street ? streetId : '',
       area_id: area ? areaId : '',
       moved: original ? Boolean(original.moved) : area?.kind === 'other_church',
@@ -132,14 +133,13 @@ export default function AddFamily() {
     [data.areas, moved],
   );
   const streetOptions = useMemo(
-    () => data.streets.filter((s) => s.area_id === areaId && searchKey(s.name) !== searchKey(PLACEHOLDER_STREET)).map((s) => ({ value: s.id, label: s.name || '' })).sort(byLabel),
+    () => data.streets.filter((s) => s.area_id === areaId).map((s) => ({ value: s.id, label: s.name || '' })).sort(byLabel),
     [data.streets, areaId],
   );
   const buildingOptions = useMemo(
     () => [
-      { value: NO_BUILDING, label: 'بدون مبنى' },
       ...data.buildings
-        .filter((b) => b.street_id === streetId && !isPlaceholder(b))
+        .filter((b) => b.street_id === streetId)
         .map((b) => ({ value: b.id, label: buildingLabel(b) }))
         .sort(byLabel),
     ],
@@ -151,11 +151,11 @@ export default function AddFamily() {
   const chosenArea = byId(data.areas, areaId);
   const chosenStreet = byId(data.streets, streetId);
   const areaName = isNewArea ? get('new_area_name') : chosenArea ? areaLabel(chosenArea) : '';
-  const streetName = isNewStreet ? get('new_street_name') : chosenStreet?.name;
+  const streetName = isNewStreet ? get('new_street_name') : chosenStreet ? chosenStreet.name : (areaId || isNewArea ? UNKNOWN : '');
   const placeText = [
     areaName,
     streetName,
-    moved ? null : isNewBuilding ? `مبنى ${get('new_house_no') || 'جديد'}` : building ? buildingLabel(building) : (buildingChoice === NO_BUILDING ? 'بدون مبنى' : null),
+    isNewBuilding ? `مبنى ${get('new_house_no') || 'جديد'}` : building ? buildingLabel(building) : (areaId || isNewArea ? UNKNOWN : null),
   ].filter(Boolean).join(' › ') || '—';
   const placeTouched = ['area_id', 'street_id', 'building_id', 'moved'].some((k) => k in edits);
 
@@ -173,7 +173,7 @@ export default function AddFamily() {
           : '/';
 
   // ---------- building location (same method as the pin in the building list) ----------
-  const hasBuilding = !moved && (Boolean(building) || isNewBuilding);
+  const hasBuilding = (Boolean(building) || isNewBuilding);
   const savedLocation = hasLocation(building);
   const findLocation = async () => {
     setLocStatus({ kind: 'working', text: 'جاري تحديد موقعك... اسمح للتطبيق بالوصول إلى الموقع إذا ظهر طلب الإذن.' });
@@ -225,13 +225,9 @@ export default function AddFamily() {
     const newHouseNo = get('new_house_no').trim();
     const newAreaName = get('new_area_name').trim();
     const newStreetName = get('new_street_name').trim();
-    if (moved) {
-      if (!areaId) return setError('اختر الكنيسة التي انتقلت إليها الأسرة، أو اكتب اسمها لإضافتها');
-    } else if (areaId || streetId || buildingChoice || (editing && original.building_id)) {
-      // the whole place (area > street > building) is saved together, so it must be complete
-      if (!areaId) return setError('اختر المنطقة');
-      if (!streetId) return setError('اختر الشارع، أو اكتب اسمه لإضافته');
-      if (!buildingChoice) return setError('اختر المبنى، أو "بدون مبنى"، أو اكتب رقم مبنى جديد');
+    if (moved || areaId || streetId || buildingChoice || (editing && original.building_id)) {
+      // the whole place (area/church > street > building) is saved together, so it must be complete
+      if (!areaId) return setError(moved ? 'اختر الكنيسة التي انتقلت إليها الأسرة، أو اكتب اسمها لإضافتها' : 'اختر المنطقة');
       if (isNewBuilding && !newHouseNo) return setError('اكتب رقم المنزل للمبنى الجديد');
     }
 
@@ -256,19 +252,19 @@ export default function AddFamily() {
         }
       }
       const ensureStreet = async (name) => {
-        const same = isNewArea ? null : data.streets.find((x) => x.area_id === aId && searchKey(x.name) === searchKey(name));
+        const same = isNewArea ? null : data.streets.find((x) => x.area_id === aId && (name === UNKNOWN ? isUnknownName(x.name) : searchKey(x.name) === searchKey(name)));
         if (same) return same.id;
         const sid = newId();
         await createRow('streets', { id: sid, church_id, area_id: aId, name, created_at: now, updated_at: now });
         return sid;
       };
       if (isNewStreet) sId = await ensureStreet(newStreetName);
-      else if (moved && aId && !sId) sId = await ensureStreet(PLACEHOLDER_STREET); // moved, street unknown
+      else if (!sId) sId = await ensureStreet(UNKNOWN);   // street left empty
       const ensurePlaceholderBuilding = async () => {
         const same = data.buildings.find((x) => x.street_id === sId && isPlaceholder(x));
         if (same) return same.id;
         const bid = newId();
-        await createRow('buildings', { id: bid, church_id, street_id: sId, house_no: PLACEHOLDER_BUILDING, created_at: now, updated_at: now });
+        await createRow('buildings', { id: bid, church_id, street_id: sId, house_no: UNKNOWN, created_at: now, updated_at: now });
         return bid;
       };
 
@@ -276,16 +272,14 @@ export default function AddFamily() {
       let buildingId = null;
       const buildingNotes = get('bnotes').trim() || null;
       const locFields = loc ? { lat: loc.lat, lng: loc.lng, location_accuracy: loc.accuracy } : {};
-      if (moved) {
-        if (sId) buildingId = await ensurePlaceholderBuilding();
-      } else if (isNewBuilding) {
+      if (isNewBuilding) {
         buildingId = newId();
         await createRow('buildings', {
           id: buildingId, church_id, street_id: sId, house_no: newHouseNo,
           direction: get('new_direction').trim() || null, notes: buildingNotes, ...locFields,
           ...(loc ? { maps_url: mapsLink(loc.lat, loc.lng) } : {}), created_at: now, updated_at: now,
         });
-      } else if (buildingChoice === NO_BUILDING) {
+      } else if (!building) {   // building left empty -> the hidden "no building" one
         buildingId = await ensurePlaceholderBuilding();
       } else if (building) {
         buildingId = building.id;
@@ -376,7 +370,7 @@ export default function AddFamily() {
             />
           </SField>
 
-          <SField label={moved ? 'الشارع (اختياري)' : 'اسم الشارع'}>
+          <SField label="اسم الشارع">
             <SearchSelect
               options={streetOptions}
               value={streetId}
@@ -385,11 +379,11 @@ export default function AddFamily() {
               onCreate={createStreet}
               createLabel="كشارع جديد"
               disabled={!areaId}
-              placeholder={areaId ? '— ابحث عن الشارع أو اكتب اسمه —' : (moved ? '— اختر الكنيسة أولاً —' : '— اختر المنطقة أولاً —')}
+              placeholder={areaId ? '— اختياري: ابحث عن الشارع أو اكتب اسمه —' : (moved ? '— اختر الكنيسة أولاً —' : '— اختر المنطقة أولاً —')}
             />
           </SField>
 
-          {!moved && (
+          {(
             <SField label="المبنى (رقم المنزل / الاتجاه)">
               <SearchSelect
                 options={buildingOptions}
@@ -398,9 +392,8 @@ export default function AddFamily() {
                 onChange={chooseBuilding}
                 onCreate={createBuilding}
                 createLabel="كمبنى جديد"
-                allowClear={false}
                 disabled={!streetId}
-                placeholder={streetId ? '— اختر المبنى أو اكتب رقمه —' : '— اختر الشارع أولاً —'}
+                placeholder={streetId ? '— اختياري: ابحث عن المبنى أو اكتب رقمه —' : '— غير محدد (اختر شارعاً لتحديد مبنى) —'}
               />
             </SField>
           )}
@@ -411,7 +404,7 @@ export default function AddFamily() {
             </p>
           )}
 
-          {isNewBuilding && !moved && (
+          {isNewBuilding && (
             <div className="grid grid-cols-2 gap-3 p-3 rounded-xl bg-gold/10">
               <Field label="رقم المنزل *">
                 <input type="text" value={get('new_house_no')} onChange={set('new_house_no')} className={inputClass} />
@@ -422,7 +415,7 @@ export default function AddFamily() {
             </div>
           )}
 
-          {!moved && (
+          {(
             <div className="grid grid-cols-2 gap-3">
               <Field label="رقم الدور">
                 <input type="text" value={get('floor_no')} onChange={set('floor_no')} className={inputClass} />

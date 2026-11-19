@@ -3,7 +3,7 @@ import { Link, useNavigate, useParams } from 'react-router-dom';
 import { Plus, Pencil, Phone, Trash2, ClipboardList } from 'lucide-react';
 import { useAuth } from '../auth.jsx';
 import { deleteRow } from '../db';
-import { useTables, lookupsFor, LOOKUP, buildingLabel, areaLabel, confessorNames } from '../data.js';
+import { useTables, lookupsFor, LOOKUP, buildingLabel, areaLabel, confessorNames, placeCrumbs } from '../data.js';
 import { PageHeader, Loading, NotFound, PendingBadge } from '../components/ui.jsx';
 
 const GENDER = { male: 'ذكر', female: 'أنثى' };
@@ -87,7 +87,7 @@ export default function Family() {
 
   return (
     <div className="pb-20">
-      <PageHeader title={family.family_name} subtitle={where} back={back} />
+      <PageHeader title={family.family_name} subtitle={where} back={back} crumbs={placeCrumbs({ area, street, building })} />
 
       <div className="p-4 space-y-6">
         {family._pending && (
