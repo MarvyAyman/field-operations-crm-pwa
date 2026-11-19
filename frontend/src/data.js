@@ -228,3 +228,30 @@ export function useOutboxCounts() {
 
   return counts;
 }
+
+// family members in their paper-list order: member number 1 (the head), 2 (wife), 3... ; numberless ones last, by name
+export function sortPeople(people) {
+  const n = (p) => { const v = parseInt(toAsciiDigits(String(p.person_no ?? '')), 10); return Number.isNaN(v) ? Infinity : v; };
+  return [...people].sort((a, b) => n(a) - n(b) || (a.full_name || '').localeCompare(b.full_name || '', 'ar'));
+}
+
+// the person's own numbers (phone, phone2), digits normalised, no duplicates
+export function personPhones(person) {
+  const out = [];
+  for (const k of ['phone', 'phone2']) {
+    const v = toAsciiDigits(String(person?.extra?.[k] ?? '')).trim();
+    if (v && !out.includes(v)) out.push(v);
+  }
+  return out;
+}
+
+// 01012345678 / +20 101 234 5678 / 0020... -> 201012345678 (WhatsApp wants the country code, digits only; Egypt by default)
+export function waNumber(raw) {
+  let d = toAsciiDigits(String(raw ?? '')).replace(/[^\d+]/g, '');
+  const plus = d.startsWith('+');
+  d = d.replace(/\D/g, '');
+  if (plus) return d;
+  if (d.startsWith('00')) return d.slice(2);
+  if (d.startsWith('0')) return `20${d.slice(1)}`;
+  return d;
+}

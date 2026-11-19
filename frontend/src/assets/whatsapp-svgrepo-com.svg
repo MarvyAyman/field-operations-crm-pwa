@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- placeholder: replace this file with your own whatsapp-svgrepo-com.svg (same name, same folder) -->
+<svg width="800px" height="800px" viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg">
+  <circle cx="24" cy="24" r="22" fill="#25D366"/>
+  <path d="M24 10.5a13.5 13.5 0 0 0-11.6 20.4L10.5 37.5l6.8-1.8A13.5 13.5 0 1 0 24 10.5z" fill="none" stroke="#fff" stroke-width="2.6" stroke-linejoin="round"/>
+  <path d="M19.2 18.2c.4-.7 1-.8 1.5-.2l1.2 1.8c.3.5.3.9-.1 1.4l-.7.8c1 1.9 2.4 3.3 4.3 4.3l.9-.8c.4-.4.9-.4 1.4-.1l1.8 1.1c.6.4.6 1-.1 1.7-1.2 1.2-3 1.4-5 .6-3.3-1.4-5.4-3.6-6.7-6.6-.6-1.6-.3-3 .5-4z" fill="#fff"/>
+</svg>
