@@ -5,7 +5,7 @@ import { useAuth } from '../auth.jsx';
 import BottomSheet from '../components/BottomSheet.jsx';
 import waIcon from '../assets/whatsapp-svgrepo-com.svg';
 import { deleteRow } from '../db';
-import { useTables, lookupsFor, LOOKUP, buildingLabel, areaLabel, confessorNames, placeCrumbs, sortPeople, personPhones, waNumber } from '../data.js';
+import { useTables, lookupsFor, LOOKUP, buildingLabel, areaLabel, confessorNames, placeCrumbs, sortPeople, personPhones, waNumber, isMobile } from '../data.js';
 import { PageHeader, Loading, NotFound, PendingBadge } from '../components/ui.jsx';
 
 const GENDER = { male: 'ذكر', female: 'أنثى' };
@@ -113,6 +113,7 @@ export default function Family() {
 
   // view-only by default; the pencil switches editing on. Leaving the page always brings it back to view-only.
   const [editMode, setEditMode] = useState(false);
+  const [visitToDelete, setVisitToDelete] = useState(null);
   const [menu, setMenu] = useState(null); // which person's call / WhatsApp number box is open: 'personId:call' | 'personId:wa'
 
   const people = useMemo(() => sortPeople(data.people.filter((p) => p.family_id === familyId && !p.deleted_at)), [data.people, familyId]);
@@ -243,7 +244,9 @@ export default function Family() {
                   {nums.length > 0 && (
                     <div className="flex gap-2 shrink-0">
                       <NumberAction numbers={nums} kind="call" open={menu === `${p.id}:call`} onToggle={() => setMenu(menu === `${p.id}:call` ? null : `${p.id}:call`)} onClose={() => setMenu(null)} />
-                      <NumberAction numbers={nums} kind="wa" open={menu === `${p.id}:wa`} onToggle={() => setMenu(menu === `${p.id}:wa` ? null : `${p.id}:wa`)} onClose={() => setMenu(null)} />
+                      {nums.some(isMobile) && (
+                        <NumberAction numbers={nums.filter(isMobile)} kind="wa" open={menu === `${p.id}:wa`} onToggle={() => setMenu(menu === `${p.id}:wa` ? null : `${p.id}:wa`)} onClose={() => setMenu(null)} />
+                      )}
                     </div>
                   )}
                 </div>
@@ -259,22 +262,55 @@ export default function Family() {
 
         <Section title={`الزيارات (${visits.length})`}>
           {visits.length === 0 && <p className="text-gray-500 text-sm">لم تتم زيارة هذه الأسرة بعد</p>}
-          {visits.map((v) => (
-            <Link key={v.id} to={`/visit/${v.id}/edit`} className="block bg-white rounded-xl p-3 shadow-sm">
-              <span className="font-bold text-navy">
-                {v.visited_on}
-                <PendingBadge row={v} />
-              </span>
-              {hasVisitStatuses && labelOf(v.status_id) && (
-                <span className="text-sm text-green-700 mr-2">{labelOf(v.status_id)}</span>
-              )}
-              {v.notes && <span className="block text-sm text-gray-600 whitespace-pre-line">{v.notes}</span>}
-              {(v.created_by_name || v._pending) && (
-                <span className="block text-xs text-gray-500 mt-1">بواسطة: {v.created_by_name || user?.name || user?.email}</span>
-              )}
-            </Link>
-          ))}
+          {visits.map((v) => {
+            const body = (
+              <>
+                <span className="font-bold text-navy">
+                  {v.visited_on}
+                  <PendingBadge row={v} />
+                </span>
+                {hasVisitStatuses && labelOf(v.status_id) && (
+                  <span className="text-sm text-green-700 mr-2">{labelOf(v.status_id)}</span>
+                )}
+                {v.notes && <span className="block text-sm text-gray-600 whitespace-pre-line">{v.notes}</span>}
+                {(v.created_by_name || v._pending) && (
+                  <span className="block text-xs text-gray-500 mt-1">بواسطة: {v.created_by_name || user?.name || user?.email}</span>
+                )}
+              </>
+            );
+            // view mode: just read it. edit mode: the visit gets edit and delete buttons
+            if (!editMode) return <div key={v.id} className="block bg-white rounded-xl p-3 shadow-sm">{body}</div>;
+            return (
+              <div key={v.id} className="flex items-center gap-2 bg-white rounded-xl p-3 shadow-sm border-2 border-gold">
+                <div className="flex-1 min-w-0">{body}</div>
+                <Link to={`/visit/${v.id}/edit`} aria-label="تعديل الزيارة" className="w-11 h-11 rounded-full bg-gray-100 text-maroon flex items-center justify-center shrink-0">
+                  <Pencil className="w-5 h-5" />
+                </Link>
+                <button type="button" onClick={() => setVisitToDelete(v)} aria-label="حذف الزيارة" className="w-11 h-11 rounded-full bg-red-50 text-red-600 flex items-center justify-center shrink-0">
+                  <Trash2 className="w-5 h-5" />
+                </button>
+              </div>
+            );
+          })}
         </Section>
+
+        {visitToDelete && (
+          <BottomSheet title={`حذف زيارة ${visitToDelete.visited_on}؟`} onClose={() => setVisitToDelete(null)}>
+            {(close) => (
+              <div className="space-y-2 pb-1">
+                <p className="text-center text-sm text-gray-500">لا يمكن التراجع عن الحذف.</p>
+                <button
+                  type="button"
+                  onClick={async () => { await deleteRow('visits', visitToDelete.id); runSync(); close(); }}
+                  className="w-full rounded-xl bg-red-600 p-4 font-bold text-white"
+                >
+                  حذف الزيارة
+                </button>
+                <button type="button" onClick={close} className="w-full rounded-xl bg-gray-100 p-4 font-bold text-navy">إلغاء</button>
+              </div>
+            )}
+          </BottomSheet>
+        )}
 
         <button type="button" onClick={handleDelete} className="w-full text-red-600 font-bold p-3 flex items-center justify-center gap-2">
           <Trash2 className="w-5 h-5" /> حذف الأسرة

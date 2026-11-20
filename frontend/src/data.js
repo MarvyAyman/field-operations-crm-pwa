@@ -255,3 +255,14 @@ export function waNumber(raw) {
   if (d.startsWith('0')) return `20${d.slice(1)}`;
   return d;
 }
+
+// can WhatsApp reach this number? Egyptian mobiles (010 / 011 / 012 / 015 + 8 digits) and international numbers; not landlines (e.g. 040…, 02…)
+export function isMobile(raw) {
+  const text = toAsciiDigits(String(raw ?? '')).trim();
+  const intl = text.startsWith('+') || text.replace(/\D/g, '').startsWith('00');
+  let d = text.replace(/\D/g, '');
+  if (d.startsWith('00')) d = d.slice(2);
+  if (d.startsWith('20') && (intl || d.length === 12)) return /^1[0125]\d{8}$/.test(d.slice(2));   // Egyptian, with country code
+  if (intl) return d.length >= 8;                                                                  // another country
+  return /^0?1[0125]\d{8}$/.test(d);
+}

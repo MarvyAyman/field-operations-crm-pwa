@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { Plus, MapPin, Navigation, Loader2, X } from 'lucide-react';
-import { useTables, buildingLabel, placeCrumbs } from '../data.js';
+import { useTables, placeCrumbs } from '../data.js';
 import { PageHeader, ListLink, Loading, NotFound, PendingBadge, AddFamilyFab } from '../components/ui.jsx';
 import { useLocationCapture } from '../useLocationCapture.js';
 import { hasLocation, mapsLink } from '../location.js';
@@ -17,17 +17,22 @@ const STATUS_STYLE = {
 function BuildingRow({ b }) {
   const { status, busy, capture, dismiss } = useLocationCapture(b);
   const located = hasLocation(b);
+  // under the number: the direction, then the building notes ("بجوار الصيدلية، عمارة بها مصعد")
+  const details = [b.direction, b.notes].map((x) => String(x ?? '').replace(/\s+/g, ' ').trim()).filter(Boolean).join('، ');
 
   return (
     <div>
       <div className="flex items-stretch gap-2">
         <div className="flex-1 min-w-0">
           <ListLink to={`/building/${b.id}`}>
-            <span className="font-bold text-lg">
-              {buildingLabel(b)}
-              <PendingBadge row={b} />
+            <span className="min-w-0 flex-1">
+              <span className="block font-bold text-lg">
+                مبنى {b.house_no}
+                <PendingBadge row={b} />
+              </span>
+              {details && <span className="block text-sm text-gray-600 line-clamp-2">{details}</span>}
             </span>
-            <span className="text-sm text-gray-500">{b.familyCount} أسرة</span>
+            <span className="text-sm text-gray-500 shrink-0 pr-3">{b.familyCount} أسرة</span>
           </ListLink>
         </div>
 
