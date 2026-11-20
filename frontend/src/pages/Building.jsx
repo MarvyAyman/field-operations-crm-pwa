@@ -55,7 +55,7 @@ export default function Building() {
         <div className="flex gap-2">
           <Link
             to={`/building/${buildingId}/edit`}
-            className="flex-1 bg-white text-navy font-bold p-4 rounded-xl flex items-center justify-center gap-2 shadow-sm"
+            className="flex-1 bg-gold/15 text-navy border-2 border-gold/50 font-bold p-4 rounded-xl flex items-center justify-center gap-2"
             aria-label="تعديل المبنى"
           >
             <Pencil className="w-5 h-5" /> تعديل المبنى
