@@ -1,5 +1,5 @@
-import { Link, useLocation } from 'react-router-dom';
-import { ChevronRight, ChevronLeft, Home, Plus } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { ChevronRight, ChevronLeft, Home } from 'lucide-react';
 
 // Blue header with a back arrow (RTL: the arrow points right)
 // The path above the current page (home › area › street › building): every step is one tap away.
@@ -98,19 +98,3 @@ export function ListLink({ to, highlight = false, children }) {
   );
 }
 
-// Round "+" button floating at the bottom-right of the screen (above the search button): add a family.
-// `to` already carries where the user is standing (?area= / ?street= / ?building=)
-// On the home page there is no search button (it has a search box instead), so "+" takes the bottom corner.
-export function AddFamilyFab({ to = '/family/add' }) {
-  const onHome = useLocation().pathname === '/';
-  return (
-    <Link
-      to={to}
-      aria-label="إضافة أسرة"
-      title="إضافة أسرة"
-      className={`fixed ${onHome ? 'bottom-5' : 'bottom-28'} right-5 z-40 w-16 h-16 rounded-full bg-maroon text-white shadow-lg shadow-black/30 flex items-center justify-center active:scale-95 transition-transform`}
-    >
-      <Plus className="w-8 h-8" strokeWidth={2.5} />
-    </Link>
-  );
-}

@@ -4,7 +4,7 @@ import { Pencil, MapPin } from 'lucide-react';
 import { useAuth } from '../auth.jsx';
 import { deleteRow } from '../db';
 import { useTables, buildingLabel, lastVisitByFamily, placeCrumbs } from '../data.js';
-import { PageHeader, ListLink, Loading, NotFound, PendingBadge, AddFamilyFab } from '../components/ui.jsx';
+import { PageHeader, ListLink, Loading, NotFound, PendingBadge } from '../components/ui.jsx';
 
 // Families living in one building
 export default function Building() {
@@ -41,7 +41,7 @@ export default function Building() {
   };
 
   return (
-    <div className="pb-28">
+    <div className="pb-32">
       <PageHeader
         title={buildingLabel(building)}
         subtitle={street?.name}
@@ -95,7 +95,6 @@ export default function Building() {
           حذف المبنى
         </button>
       </div>
-      <AddFamilyFab to={`/family/add?building=${buildingId}`} />
     </div>
   );
 }

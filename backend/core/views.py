@@ -31,6 +31,7 @@ from .permissions import IsAdminRole, IsServantOrAdmin, get_active_member
 def _user_payload(user, member):
     """The profile the frontend caches on the device for offline use."""
     return {
+        'id': str(member.id),
         'email': user.email,
         'name': (member.full_name or '').strip() or user.first_name or user.username,
         'role': member.role,

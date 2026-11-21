@@ -58,7 +58,7 @@ export function personFormDefault(person, key) {
   if (key === 'confessor_more') return (person?.extra?.confessor_more || []).map((c) => ({ v: c.id || OTHER, other: c.other || '' }));
   if (key === 'relation_id') return person?.relation_id || (person?.extra?.relation_other ? OTHER : '');
   if (key === 'relation_other') return person?.extra?.relation_other ?? '';
-  if (key === 'phone' || key === 'phone2' || key === 'notes') return person?.extra?.[key] ?? '';
+  if (key === 'phone' || key === 'phone2' || key === 'notes' || key === 'membership_no') return person?.extra?.[key] ?? '';
   return person?.[key] ?? '';
 }
 
@@ -73,7 +73,7 @@ export function personFieldsFromForm(get, existingExtra = null) {
   delete extra.relation_other;
   delete extra.confessor_more;
   // the person's own phones and notes (only the person form has these inputs; keep what is stored otherwise)
-  for (const k of ['phone', 'phone2', 'notes']) {
+  for (const k of ['phone', 'phone2', 'notes', 'membership_no']) {
     const v = get(k);
     if (v === undefined || v === null) continue;
     const t = k === 'notes' ? String(v).trim() : toAsciiDigits(String(v).trim());

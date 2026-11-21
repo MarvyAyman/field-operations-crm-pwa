@@ -2,7 +2,7 @@ import { useMemo } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { Plus, MapPin, Navigation, Loader2, X } from 'lucide-react';
 import { useTables, placeCrumbs } from '../data.js';
-import { PageHeader, ListLink, Loading, NotFound, PendingBadge, AddFamilyFab } from '../components/ui.jsx';
+import { PageHeader, ListLink, Loading, NotFound, PendingBadge } from '../components/ui.jsx';
 import { useLocationCapture } from '../useLocationCapture.js';
 import { hasLocation, mapsLink } from '../location.js';
 
@@ -97,7 +97,7 @@ export default function Street() {
   if (!street) return <NotFound back="/" />;
 
   return (
-    <div className="pb-28">
+    <div className="pb-32">
       <PageHeader title={street.name} subtitle={`${buildings.length} مبنى`} back={`/area/${street.area_id}`} crumbs={placeCrumbs({ area: data.areas.find((a) => a.id === street.area_id) })} />
       <div className="p-4 space-y-3">
         <Link
@@ -112,7 +112,6 @@ export default function Street() {
           <BuildingRow key={b.id} b={b} />
         ))}
       </div>
-      <AddFamilyFab to={`/family/add?street=${streetId}`} />
     </div>
   );
 }

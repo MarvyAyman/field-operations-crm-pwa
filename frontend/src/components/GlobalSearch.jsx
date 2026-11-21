@@ -11,14 +11,14 @@ function Hl({ text, tokens, max }) {
 }
 
 const FILTERS = [
-  ['all', 'الكل'], ['families', 'رب الأسرة'], ['people', 'الأفراد'], ['streets', 'الشوارع'],
+  ['all', 'الكل'], ['families', 'الأسر'], ['people', 'الأفراد'], ['streets', 'الشوارع'],
   ['buildings', 'المباني'], ['areas', 'المناطق'], ['notes', 'الملاحظات'], ['phones', 'التليفونات'],
 ];
 const HINTS = {
   all: 'اكتب أي جزء من اسم أسرة أو فرد (الزوجة، الأبناء…) أو شارع أو مبنى أو رقم تليفون أو ملاحظة.',
-  families: 'ابحث في أسماء رب الأسرة فقط.', people: 'ابحث في أسماء الأفراد (الزوجة والأبناء وغيرهم) ووظائفهم.',
-  streets: 'ابحث عن شارع.', buildings: 'ابحث عن رقم مبنى أو اتجاهه.', areas: 'ابحث عن منطقة أو كنيسة.',
-  notes: 'ابحث في ملاحظات الأسر والعمارات والأفراد والزيارات.', phones: 'ابحث برقم تليفون (بأي شكل كتابة).',
+  families: 'ابحثي في أسماء الأسر فقط.', people: 'ابحثي في أسماء الأفراد (الزوجة والأبناء وغيرهم) ووظائفهم.',
+  streets: 'ابحثي عن شارع.', buildings: 'ابحثي عن رقم مبنى أو اتجاهه.', areas: 'ابحثي عن منطقة أو كنيسة.',
+  notes: 'ابحثي في ملاحظات الأسر والعمارات والأفراد والزيارات.', phones: 'ابحثي برقم تليفون (بأي شكل كتابة).',
 };
 
 function Panel({ onClose }) {
@@ -160,7 +160,7 @@ function Panel({ onClose }) {
   );
 }
 
-// the search button (bottom-right, under the "+" button; the home page has its own search box instead) and the full-screen search that opens from it
+// the full-screen search; opened from the bottom bar's search tab (or the home page's search box)
 export default function GlobalSearch() {
   const { user } = useAuth();
   const location = useLocation();
@@ -176,17 +176,6 @@ export default function GlobalSearch() {
   if (!user || location.pathname === '/login') return null;
   return (
     <>
-      {!open && location.pathname !== '/' && (
-        <button
-          type="button"
-          onClick={() => setOpen(true)}
-          aria-label="بحث"
-          title="بحث"
-          className="fixed bottom-5 right-5 z-40 w-16 h-16 rounded-full bg-navy text-white shadow-lg shadow-black/30 flex items-center justify-center active:scale-95 transition-transform"
-        >
-          <Search className="w-7 h-7" strokeWidth={2.5} />
-        </button>
-      )}
       {open && <Panel onClose={() => setOpen(false)} />}
     </>
   );

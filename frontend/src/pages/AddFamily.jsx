@@ -53,6 +53,8 @@ export default function AddFamily() {
 
   const editing = Boolean(familyId);
   const original = data.families.find((f) => f.id === familyId);
+  // editing: the head of the family is edited from his own person form; the name field stays only for a family with no people
+  const noHead = editing && !data.people.some((p) => p.family_id === familyId && !p.deleted_at);
   const otherPhoneRow = data.family_phones.find((p) => p.family_id === familyId);
   const noteRow = data.family_internal_notes.find((n) => n.family_id === familyId);
 
@@ -210,7 +212,6 @@ export default function AddFamily() {
       contract_type_id: get('contract_type_id') || null,
       primary_phone: toAsciiDigits(get('primary_phone').trim()) || null,
       landline: toAsciiDigits(get('landline').trim()) || null,
-      membership_no: get('membership_no').trim() || null,
       last_visit_on: get('last_visit_on') || null,
       notes: get('notes').trim() || null,
       moved,
@@ -464,9 +465,10 @@ export default function AddFamily() {
         </Section>
 
         {/* ================= بيانات رب الأسرة ================= */}
-        <Section title={editing ? 'اسم رب الأسرة' : 'بيانات رب الأسرة'}>
+        {(!editing || noHead) && (
+        <Section title={editing ? 'اسم الأسرة' : 'بيانات رب الأسرة'}>
           {editing ? (
-            <Field label="اسم رب الأسرة *">
+            <Field label="اسم الأسرة *">
               <input type="text" value={get('family_name')} onChange={set('family_name')} className={inputClass} />
             </Field>
           ) : (
@@ -479,6 +481,7 @@ export default function AddFamily() {
             />
           )}
         </Section>
+        )}
 
         {/* ================= التواصل والبيانات الإدارية ================= */}
         <Section title="التواصل والبيانات الإدارية">
@@ -490,9 +493,6 @@ export default function AddFamily() {
           </Field>
           <Field label="تليفون أرضي">
             <input type="tel" inputMode="tel" dir="ltr" value={get('landline')} onChange={set('landline')} className={inputClass} />
-          </Field>
-          <Field label="رقم العضوية الكنسية">
-            <input type="text" value={get('membership_no')} onChange={set('membership_no')} className={inputClass} />
           </Field>
           <Field label="تاريخ آخر زيارة">
             <input type="date" value={get('last_visit_on')} onChange={set('last_visit_on')} className={inputClass} />

@@ -3,7 +3,7 @@ import { Search, LogOut, RefreshCw, AlertTriangle } from 'lucide-react';
 import { useAuth } from '../auth.jsx';
 import { discardFailed } from '../db';
 import { useTables, useOutboxCounts, areaLabel } from '../data.js';
-import { ListLink, AddFamilyFab } from '../components/ui.jsx';
+import { ListLink } from '../components/ui.jsx';
 import { openGlobalSearch } from '../searchIndex.js';
 
 export default function Home() {
@@ -46,7 +46,7 @@ export default function Home() {
   };
 
   return (
-    <div className="pb-28">
+    <div className="pb-32">
       {/* Header */}
       <header className="bg-navy text-white p-6 rounded-b-3xl relative overflow-hidden text-center shadow-md">
         <button
@@ -151,7 +151,6 @@ export default function Home() {
           </>
         )}
       </div>
-      <AddFamilyFab />
     </div>
   );
 }

@@ -112,6 +112,9 @@ export default function PersonFields({ get, set, lookups, nameLabel = 'الاس�
 
       {showContact && (
         <>
+          <Field label="رقم العضوية الكنسية">
+            <input type="text" dir="ltr" value={get('membership_no')} onChange={set('membership_no')} className={inputClass} />
+          </Field>
           <Field label="رقم الموبايل">
             <input type="tel" inputMode="tel" dir="ltr" value={get('phone')} onChange={set('phone')} className={inputClass} placeholder="01xxxxxxxxx" />
           </Field>

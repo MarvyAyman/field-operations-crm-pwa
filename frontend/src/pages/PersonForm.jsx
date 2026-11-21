@@ -53,6 +53,10 @@ export default function PersonForm() {
     try {
       if (editing) {
         await updateRow('people', personId, diffPatch(original, fields));
+        // the head of the family: his name is the family's name
+        const relLabel = data.lookup_values.find((l) => l.id === fields.relation_id)?.label;
+        const isHead = relLabel === 'رب الأسرة' || String(original.person_no).trim() === '1';
+        if (isHead && family.family_name !== fields.full_name) await updateRow('families', familyId, { family_name: fields.full_name });
       } else {
         const now = new Date().toISOString();
         await createRow('people', {

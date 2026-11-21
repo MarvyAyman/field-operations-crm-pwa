@@ -4,6 +4,7 @@ import { AuthProvider, useAuth } from './auth.jsx';
 import { useOnline } from './online.js';
 import UpdatePrompt from './components/UpdatePrompt.jsx';
 import GlobalSearch from './components/GlobalSearch.jsx';
+import BottomNav from './components/BottomNav.jsx';
 import Login from './pages/Login';
 import Home from './pages/Home';
 import Area from './pages/Area';
@@ -14,6 +15,8 @@ import Family from './pages/Family';
 import AddFamily from './pages/AddFamily';
 import PersonForm from './pages/PersonForm';
 import VisitForm from './pages/VisitForm';
+import Dashboard from './pages/Dashboard';
+import FollowUp from './pages/FollowUp';
 
 // حماية الصفحات التي تتطلب تسجيل دخول
 // (المستخدم يُقرأ من الجهاز، فيعمل بدون إنترنت)
@@ -48,6 +51,9 @@ function App() {
           <Route path="/login" element={<Login />} />
           <Route path="/" element={protect(<Home />)} />
 
+          <Route path="/dashboard" element={protect(<Dashboard />)} />
+          <Route path="/follow-up" element={protect(<FollowUp />)} />
+
           <Route path="/area/:areaId" element={protect(<Area />)} />
           <Route path="/street/:streetId" element={protect(<Street />)} />
 
@@ -66,6 +72,7 @@ function App() {
 
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
+        <BottomNav />
       </BrowserRouter>
     </AuthProvider>
   );

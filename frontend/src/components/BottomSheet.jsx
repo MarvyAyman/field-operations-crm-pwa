@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 
 // A sheet that slides up from the bottom (like Instagram comments). Closes by: tapping the dark area, Esc,
 // pulling the handle / title down, or the close() the content gets. `children` may be a function(close).
-export default function BottomSheet({ title, onClose, children }) {
+export default function BottomSheet({ title, label, onClose, children }) {
   const [shown, setShown] = useState(false); // false -> sheet is below the screen (start / end of the animation)
   const [drag, setDrag] = useState(0);
   const start = useRef(null);
@@ -50,7 +50,7 @@ export default function BottomSheet({ title, onClose, children }) {
       <div
         role="dialog"
         aria-modal="true"
-        aria-label={title}
+        aria-label={typeof title === 'string' ? title : label}
         className="absolute inset-x-0 bottom-0 mx-auto w-full max-w-md rounded-t-3xl bg-white shadow-2xl"
         style={{
           transform: `translateY(${shown ? drag : 1000}px)`,
@@ -60,7 +60,7 @@ export default function BottomSheet({ title, onClose, children }) {
       >
         <div onTouchStart={onTouchStart} onTouchMove={onTouchMove} onTouchEnd={onTouchEnd} className="touch-none select-none pt-2">
           <div className="mx-auto h-1.5 w-10 rounded-full bg-gray-300" />
-          <p className="px-4 py-3 text-center font-bold text-navy">{title}</p>
+          <div className="px-4 py-3 text-center font-bold text-navy">{title}</div>
         </div>
         <div className="max-h-[60vh] overflow-y-auto px-3 pb-2">{typeof children === 'function' ? children(close) : children}</div>
       </div>

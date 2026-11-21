@@ -152,7 +152,7 @@ export default function Family() {
     .join(' · ');
 
   return (
-    <div className="pb-28">
+    <div className="pb-32">
       <PageHeader title={family.family_name} subtitle={where} back={back} crumbs={placeCrumbs({ area, street, building })} />
 
       <div className="p-4 space-y-6">
@@ -182,20 +182,36 @@ export default function Family() {
             {editMode && <span className="text-sm">تعديل</span>}
           </button>
         </div>
-        {(labelOf(family.contract_type_id) || family.membership_no || family.last_visit_on || building?.notes || family.notes || internalNote) && (
-          <div className="bg-white rounded-xl p-4 shadow-sm space-y-2">
-            {labelOf(family.contract_type_id) && <p className="text-sm text-gray-600">نوع العقد: {labelOf(family.contract_type_id)}</p>}
-            {family.membership_no && <p className="text-sm text-gray-600">رقم العضوية: {family.membership_no}</p>}
-            {family.last_visit_on && <p className="text-sm text-gray-600">تاريخ آخر زيارة: {family.last_visit_on}</p>}
-            {building?.notes && <p className="text-sm text-gray-600">عن العمارة: {building.notes}</p>}
-            {family.notes && <p className="text-gray-700 whitespace-pre-line">{family.notes}</p>}
-            {internalNote && (
-              <p className="text-sm text-gray-600 whitespace-pre-line bg-gold/10 rounded-lg p-2">
-                <span className="font-bold text-navy">ملاحظة داخلية (الورق القديم): </span>{internalNote}
-              </p>
-            )}
-          </div>
-        )}
+        {(() => {
+          const hasInfo = labelOf(family.contract_type_id) || family.membership_no || family.last_visit_on || building?.notes || family.notes || internalNote;
+          if (!hasInfo && !editMode) return null;
+          const content = (
+            <>
+              {labelOf(family.contract_type_id) && <p className="text-sm text-gray-600">نوع العقد: {labelOf(family.contract_type_id)}</p>}
+              {family.membership_no && <p className="text-sm text-gray-600">رقم العضوية: {family.membership_no}</p>}
+              {family.last_visit_on && <p className="text-sm text-gray-600">تاريخ آخر زيارة: {family.last_visit_on}</p>}
+              {building?.notes && <p className="text-sm text-gray-600">عن العمارة: {building.notes}</p>}
+              {family.notes && <p className="text-gray-700 whitespace-pre-line">{family.notes}</p>}
+              {internalNote && (
+                <p className="text-sm text-gray-600 whitespace-pre-line bg-gold/10 rounded-lg p-2">
+                  <span className="font-bold text-navy">ملاحظة داخلية (الورق القديم): </span>{internalNote}
+                </p>
+              )}
+            </>
+          );
+          // edit mode: the box opens the family form (data, location, "moved", internal note)
+          if (editMode) {
+            return (
+              <Link to={`/family/${familyId}/edit`} className="flex items-center gap-3 bg-white rounded-xl p-4 shadow-sm border-2 border-gold">
+                <div className="flex-1 min-w-0 space-y-2">
+                  {hasInfo ? content : <p className="text-gray-500">اضغط لتعديل بيانات الأسرة والموقع</p>}
+                </div>
+                <Pencil className="w-5 h-5 text-maroon shrink-0" />
+              </Link>
+            );
+          }
+          return <div className="bg-white rounded-xl p-4 shadow-sm space-y-2">{content}</div>;
+        })()}
 
         <Section
           title={`الأفراد (${people.length})`}
@@ -226,7 +242,7 @@ export default function Family() {
               return (
                 <Link
                   key={p.id}
-                  to={isHead ? `/family/${familyId}/edit` : `/person/${p.id}/edit`}
+                  to={`/person/${p.id}/edit`}
                   className="flex items-center gap-3 bg-white rounded-xl p-3 shadow-sm border-2 border-gold"
                 >
                   <span className="flex-1 min-w-0">
