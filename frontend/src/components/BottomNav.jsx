@@ -57,7 +57,7 @@ export default function BottomNav() {
         </span>
         <span>بحث</span>
       </button>
-      <Item to="/follow-up" icon={ClipboardCheck} label="سجل الزيارات" active={pathname === '/follow-up'} />
+      <Item to="/follow-up" icon={ClipboardCheck} label="زياراتي" active={pathname === '/follow-up'} />
       <Item to="/dashboard" icon={BarChart3} label="الداشبورد" active={pathname === '/dashboard'} />    
       </div>
     </nav>

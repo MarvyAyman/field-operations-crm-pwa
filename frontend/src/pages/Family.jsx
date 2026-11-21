@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { Plus, Pencil, Phone, Trash2, ClipboardList, Copy, Check } from 'lucide-react';
+import { Plus, Pencil, Phone, Trash2, ClipboardList, Copy, Check, ChevronDown, StickyNote } from 'lucide-react';
 import { useAuth } from '../auth.jsx';
 import BottomSheet from '../components/BottomSheet.jsx';
 import waIcon from '../assets/whatsapp-svgrepo-com.svg';
@@ -9,6 +9,22 @@ import { useTables, lookupsFor, LOOKUP, buildingLabel, areaLabel, confessorNames
 import { PageHeader, Loading, NotFound, PendingBadge } from '../components/ui.jsx';
 
 const GENDER = { male: 'ذكر', female: 'أنثى' };
+
+const VISITS_SHOWN = 3; // the family page shows the latest visits first; the rest open with a button
+const arNum = (n) => Number(n).toLocaleString('ar-EG', { useGrouping: false });
+function daysSince(dateIso) {
+  const [y, m, d] = dateIso.split('-').map(Number);
+  const t = new Date();
+  return Math.round((new Date(t.getFullYear(), t.getMonth(), t.getDate()) - new Date(y, m - 1, d)) / 86400000);
+}
+function ago(days) {
+  if (days <= 0) return 'اليوم';
+  if (days === 1) return 'أمس';
+  if (days < 7) return `منذ ${arNum(days)} أيام`;
+  if (days < 30) { const w = Math.floor(days / 7); return w === 1 ? 'منذ أسبوع' : w === 2 ? 'منذ أسبوعين' : `منذ ${arNum(w)} أسابيع`; }
+  if (days < 365) { const mo = Math.floor(days / 30); return mo === 1 ? 'منذ شهر' : mo === 2 ? 'منذ شهرين' : `منذ ${arNum(mo)} شهور`; }
+  const yr = Math.floor(days / 365); return yr === 1 ? 'منذ سنة' : yr === 2 ? 'منذ سنتين' : `منذ ${arNum(yr)} سنين`;
+}
 
 function Section({ title, action, children }) {
   return (
@@ -114,11 +130,14 @@ export default function Family() {
   // view-only by default; the pencil switches editing on. Leaving the page always brings it back to view-only.
   const [editMode, setEditMode] = useState(false);
   const [visitToDelete, setVisitToDelete] = useState(null);
+  const [showAllVisits, setShowAllVisits] = useState(false);
+  const [onlyNotes, setOnlyNotes] = useState(false);
+  const [openVisits, setOpenVisits] = useState(() => new Set()); // visits whose long note is unfolded
   const [menu, setMenu] = useState(null); // which person's call / WhatsApp number box is open: 'personId:call' | 'personId:wa'
 
   const people = useMemo(() => sortPeople(data.people.filter((p) => p.family_id === familyId && !p.deleted_at)), [data.people, familyId]);
   const visits = useMemo(
-    () => data.visits.filter((v) => v.family_id === familyId).sort((a, b) => (b.visited_on || '').localeCompare(a.visited_on || '')),
+    () => data.visits.filter((v) => v.family_id === familyId && !v.deleted_at).sort((a, b) => (b.visited_on || '').localeCompare(a.visited_on || '')),
     [data.visits, familyId]
   );
   const labelOf = useMemo(() => {
@@ -278,36 +297,77 @@ export default function Family() {
 
         <Section title={`الزيارات (${visits.length})`}>
           {visits.length === 0 && <p className="text-gray-500 text-sm">لم تتم زيارة هذه الأسرة بعد</p>}
-          {visits.map((v) => {
-            const body = (
+          {visits.length > 0 && (() => {
+            const lastDays = visits[0].visited_on ? daysSince(visits[0].visited_on) : null;
+            const withNotes = visits.filter((v) => v.notes);
+            const base = onlyNotes ? withNotes : visits;
+            const list = showAllVisits || onlyNotes ? base : base.slice(0, VISITS_SHOWN);
+            const toggle = (id) => setOpenVisits((prev) => { const n = new Set(prev); if (n.has(id)) n.delete(id); else n.add(id); return n; });
+            return (
               <>
-                <span className="font-bold text-navy">
-                  {v.visited_on}
-                  <PendingBadge row={v} />
-                </span>
-                {hasVisitStatuses && labelOf(v.status_id) && (
-                  <span className="text-sm text-green-700 mr-2">{labelOf(v.status_id)}</span>
+                <div className="flex items-center justify-between gap-2 rounded-xl bg-white px-3 py-2 text-sm shadow-sm">
+                  <span className="text-gray-600">{arNum(visits.length)} {visits.length === 1 ? 'زيارة' : 'زيارات'}</span>
+                  {lastDays !== null && (
+                    <span data-last-visit className={`font-bold ${lastDays > 60 ? 'text-amber-600' : 'text-navy'}`}>آخر زيارة {ago(lastDays)}</span>
+                  )}
+                </div>
+                {withNotes.length > 0 && (
+                  <button
+                    type="button"
+                    role="switch"
+                    aria-checked={onlyNotes}
+                    onClick={() => setOnlyNotes((v) => !v)}
+                    className={`flex items-center gap-2 rounded-full border px-3 py-1.5 text-sm font-bold ${onlyNotes ? 'border-maroon bg-maroon text-white' : 'border-gray-300 bg-white text-gray-600'}`}
+                  >
+                    <StickyNote className="w-4 h-4" /> الملاحظات فقط ({arNum(withNotes.length)})
+                  </button>
                 )}
-                {v.notes && <span className="block text-sm text-gray-600 whitespace-pre-line">{v.notes}</span>}
-                {(v.created_by_name || v._pending) && (
-                  <span className="block text-xs text-gray-500 mt-1">بواسطة: {v.created_by_name || user?.name || user?.email}</span>
+                {list.map((v) => {
+                  const long = !!v.notes && (v.notes.length > 45 || v.notes.includes('\n'));
+                  const open = openVisits.has(v.id);
+                  const body = (
+                    <>
+                      <span className="flex items-center gap-2">
+                        <span className="font-bold text-navy">
+                          {v.visited_on}
+                          <PendingBadge row={v} />
+                        </span>
+                        {hasVisitStatuses && labelOf(v.status_id) && <span className="text-sm text-green-700">{labelOf(v.status_id)}</span>}
+                        {(v.created_by_name || v._pending) && (
+                          <span className="text-xs text-gray-500 mr-auto">{v.created_by_name || user?.name || user?.email}</span>
+                        )}
+                        {long && <ChevronDown className={`w-4 h-4 shrink-0 text-gray-400 transition-transform ${open ? 'rotate-180' : ''}`} />}
+                      </span>
+                      {v.notes && (
+                        <span className={`block text-sm text-gray-600 ${open || !long ? 'whitespace-pre-line' : 'truncate'}`}>{v.notes}</span>
+                      )}
+                    </>
+                  );
+                  // a long note opens by tapping the row; in edit mode the visit also gets edit and delete buttons
+                  const main = long
+                    ? <button type="button" aria-expanded={open} onClick={() => toggle(v.id)} className="block w-full text-right min-w-0 flex-1">{body}</button>
+                    : <div className="min-w-0 flex-1">{body}</div>;
+                  if (!editMode) return <div key={v.id} className="flex bg-white rounded-xl px-3 py-2.5 shadow-sm">{main}</div>;
+                  return (
+                    <div key={v.id} className="flex items-center gap-2 bg-white rounded-xl p-3 shadow-sm border-2 border-gold">
+                      {main}
+                      <Link to={`/visit/${v.id}/edit`} aria-label="تعديل الزيارة" className="w-11 h-11 rounded-full bg-gray-100 text-maroon flex items-center justify-center shrink-0">
+                        <Pencil className="w-5 h-5" />
+                      </Link>
+                      <button type="button" onClick={() => setVisitToDelete(v)} aria-label="حذف الزيارة" className="w-11 h-11 rounded-full bg-red-50 text-red-600 flex items-center justify-center shrink-0">
+                        <Trash2 className="w-5 h-5" />
+                      </button>
+                    </div>
+                  );
+                })}
+                {!onlyNotes && base.length > VISITS_SHOWN && (
+                  <button type="button" onClick={() => setShowAllVisits((v) => !v)} className="w-full rounded-xl bg-white p-3 text-sm font-bold text-navy shadow-sm">
+                    {showAllVisits ? 'عرض أقل' : `عرض كل الزيارات (${arNum(base.length)})`}
+                  </button>
                 )}
               </>
             );
-            // view mode: just read it. edit mode: the visit gets edit and delete buttons
-            if (!editMode) return <div key={v.id} className="block bg-white rounded-xl p-3 shadow-sm">{body}</div>;
-            return (
-              <div key={v.id} className="flex items-center gap-2 bg-white rounded-xl p-3 shadow-sm border-2 border-gold">
-                <div className="flex-1 min-w-0">{body}</div>
-                <Link to={`/visit/${v.id}/edit`} aria-label="تعديل الزيارة" className="w-11 h-11 rounded-full bg-gray-100 text-maroon flex items-center justify-center shrink-0">
-                  <Pencil className="w-5 h-5" />
-                </Link>
-                <button type="button" onClick={() => setVisitToDelete(v)} aria-label="حذف الزيارة" className="w-11 h-11 rounded-full bg-red-50 text-red-600 flex items-center justify-center shrink-0">
-                  <Trash2 className="w-5 h-5" />
-                </button>
-              </div>
-            );
-          })}
+          })()}
         </Section>
 
         {visitToDelete && (

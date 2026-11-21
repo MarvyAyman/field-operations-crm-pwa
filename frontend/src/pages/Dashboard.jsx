@@ -47,11 +47,14 @@ export default function Dashboard() {
   // families I visited in the period (a visit not synced yet was made on this phone, so it is mine too)
   const visited = useMemo(() => {
     const set = new Set();
+    let count = 0;
     for (const v of data.visits) {
       if (v.deleted_at || !v.visited_on || v.visited_on < range.from || v.visited_on > range.to) continue;
-      if (v.created_by ? v.created_by === user?.id : v._pending) set.add(v.family_id);
+      if (!(v.created_by ? v.created_by === user?.id : v._pending)) continue;
+      set.add(v.family_id);
+      count += 1;
     }
-    return set.size;
+    return { families: set.size, visits: count };
   }, [data.visits, user?.id, range.from, range.to]);
 
   const ownAreas = useMemo(
@@ -107,7 +110,8 @@ export default function Dashboard() {
         <div className="rounded-2xl border border-gold bg-maroon p-5 text-white shadow-md">
           <p className="text-white/80 text-sm">{range.label}</p>
           <p className="mt-1">أسر تمت زيارتها</p>
-          <p className="mt-3 flex items-baseline gap-2 text-white"><span data-visited className="text-4xl font-bold">{ar(visited)}</span><span className="text-sm text-white/80">أسرة</span></p>
+          <p className="mt-3 flex items-baseline gap-2 text-white"><span data-visited className="text-4xl font-bold">{ar(visited.families)}</span><span className="text-sm text-white/80">أسرة</span></p>
+          <p data-visits className="mt-2 border-t border-white/20 pt-2 text-sm text-white/80">إجمالي الزيارات: <span className="font-bold text-white">{ar(visited.visits)}</span> {visited.visits === 1 ? 'زيارة' : visited.visits === 2 ? 'زيارتان' : 'زيارات'}</p>
         </div>
 
         <hr className="border-gray-200" />
