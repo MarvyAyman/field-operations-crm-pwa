@@ -45,7 +45,7 @@ export default function BottomNav() {
     >
       <div className="mx-auto flex h-[68px] max-w-md items-stretch px-1">
       <Item to="/" icon={Home} label="الرئيسية" active={home} />
-      <Item to={addTarget(pathname)} icon={Plus} label="أسرة جديدة" active={false} />
+      <Item to="/follow-up" icon={ClipboardCheck} label="سجل الزيارات" active={pathname === '/follow-up'} />
       <button
         type="button"
         onClick={openGlobalSearch}
@@ -58,7 +58,7 @@ export default function BottomNav() {
         <span>بحث</span>
       </button>
       <Item to="/dashboard" icon={BarChart3} label="الإحصائيات" active={pathname === '/dashboard'} />
-      <Item to="/follow-up" icon={ClipboardCheck} label="سجل الزيارات" active={pathname === '/follow-up'} />
+      <Item to={addTarget(pathname)} icon={Plus} label="أسرة جديدة" active={false} />
       </div>
     </nav>
   );
