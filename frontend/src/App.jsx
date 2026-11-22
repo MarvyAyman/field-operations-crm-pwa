@@ -17,6 +17,7 @@ import PersonForm from './pages/PersonForm';
 import VisitForm from './pages/VisitForm';
 import Dashboard from './pages/Dashboard';
 import FollowUp from './pages/FollowUp';
+import MyChildren from './pages/MyChildren';
 
 // حماية الصفحات التي تتطلب تسجيل دخول
 // (المستخدم يُقرأ من الجهاز، فيعمل بدون إنترنت)
@@ -53,6 +54,7 @@ function App() {
 
           <Route path="/dashboard" element={protect(<Dashboard />)} />
           <Route path="/follow-up" element={protect(<FollowUp />)} />
+          <Route path="/my-children" element={protect(<MyChildren />)} />
 
           <Route path="/area/:areaId" element={protect(<Area />)} />
           <Route path="/street/:streetId" element={protect(<Street />)} />

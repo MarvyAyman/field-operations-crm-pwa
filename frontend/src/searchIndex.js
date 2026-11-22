@@ -88,6 +88,18 @@ export function buildIndex(data) {
   return { families, places, vocab: [...vocab] };
 }
 
+// the index is rebuilt only when one of the tables it reads really changed (opening the panel again costs nothing)
+const INDEX_TABLES = ['areas', 'streets', 'buildings', 'families', 'people', 'family_phones', 'family_internal_notes', 'visits', 'lookup_values'];
+let lastIn = null;
+let lastIndex = null;
+export function cachedIndex(data) {
+  if (lastIn && INDEX_TABLES.every((t) => lastIn[t] === data[t])) return lastIndex;
+  lastIndex = buildIndex(data);
+  lastIn = Object.fromEntries(INDEX_TABLES.map((t) => [t, data[t]]));
+  return lastIndex;
+}
+export { INDEX_TABLES };
+
 // the search words: normalised, a leading "ال" is dropped ("الامير" finds "امير" and "الأمير")
 export const tokensOf = (query) => searchKey(query).split(' ').filter(Boolean).map((t) => (t.startsWith('ال') && t.length > 4 ? t.slice(2) : t));
 

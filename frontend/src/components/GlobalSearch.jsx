@@ -3,7 +3,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Search, X, MapPin, Building2, Route } from 'lucide-react';
 import { useAuth } from '../auth.jsx';
 import { useTables } from '../data.js';
-import { buildIndex, runSearch, highlightParts, OPEN_SEARCH_EVENT } from '../searchIndex.js';
+import { cachedIndex, INDEX_TABLES, runSearch, highlightParts, OPEN_SEARCH_EVENT } from '../searchIndex.js';
 
 function Hl({ text, tokens, max }) {
   return highlightParts(text, tokens, max).map((p, i) =>
@@ -16,14 +16,14 @@ const FILTERS = [
 ];
 const HINTS = {
   all: 'اكتب أي جزء من اسم أسرة أو فرد (الزوجة، الأبناء…) أو شارع أو مبنى أو رقم تليفون أو ملاحظة.',
-  families: 'ابحثي في أسماء الأسر فقط.', people: 'ابحثي في أسماء الأفراد (الزوجة والأبناء وغيرهم) ووظائفهم.',
-  streets: 'ابحثي عن شارع.', buildings: 'ابحثي عن رقم مبنى أو اتجاهه.', areas: 'ابحثي عن منطقة أو كنيسة.',
-  notes: 'ابحثي في ملاحظات الأسر والعمارات والأفراد والزيارات.', phones: 'ابحثي برقم تليفون (بأي شكل كتابة).',
+  families: 'ابحث في أسماء الأسر فقط.', people: 'ابحث في أسماء الأفراد (الزوجة والأبناء وغيرهم) ووظائفهم.',
+  streets: 'ابحث عن شارع.', buildings: 'ابحث عن رقم مبنى أو اتجاهه.', areas: 'ابحث عن منطقة أو كنيسة.',
+  notes: 'ابحث في ملاحظات الأسر والعمارات والأفراد والزيارات.', phones: 'ابحث برقم تليفون (بأي شكل كتابة).',
 };
 
 function Panel({ onClose }) {
-  const { data, loading } = useTables(['areas', 'streets', 'buildings', 'families', 'people', 'family_phones', 'family_internal_notes', 'visits', 'lookup_values']);
-  const index = useMemo(() => (loading ? null : buildIndex(data)), [data, loading]);
+  const { data, loading } = useTables(INDEX_TABLES);
+  const index = useMemo(() => (loading ? null : cachedIndex(data)), [data, loading]);
   const [query, setQuery] = useState('');
   const [filter, setFilter] = useState('all');
   const deferred = useDeferredValue(query);
@@ -161,6 +161,20 @@ function Panel({ onClose }) {
 }
 
 // the full-screen search; opened from the bottom bar's search tab (or the home page's search box)
+// Keeps the in-memory tables and the search index warm while the user is signed in (idle time only), so the search
+// panel and every page open instantly instead of reading the whole local database on demand.
+function Warmer() {
+  const { data, loading } = useTables(INDEX_TABLES);
+  useEffect(() => {
+    if (loading) return undefined;
+    const idle = window.requestIdleCallback || ((fn) => setTimeout(fn, 200));
+    const cancel = window.cancelIdleCallback || clearTimeout;
+    const id = idle(() => cachedIndex(data));
+    return () => cancel(id);
+  }, [data, loading]);
+  return null;
+}
+
 export default function GlobalSearch() {
   const { user } = useAuth();
   const location = useLocation();
@@ -176,6 +190,7 @@ export default function GlobalSearch() {
   if (!user || location.pathname === '/login') return null;
   return (
     <>
+      <Warmer />
       {open && <Panel onClose={() => setOpen(false)} />}
     </>
   );

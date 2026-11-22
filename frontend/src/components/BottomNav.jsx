@@ -1,11 +1,11 @@
 import { Link, matchPath, useLocation } from 'react-router-dom';
-import { Home, Plus, Search, BarChart3, ClipboardCheck } from 'lucide-react';
+import { Home, Plus, Search, Users, ClipboardCheck } from 'lucide-react';
 import { useAuth } from '../auth.jsx';
 import { openGlobalSearch } from '../searchIndex.js';
 
 // pages that show the bar (forms hide it: they have their own save button and the keyboard)
-const SHOWN = ['/', '/area/:id', '/street/:id', '/building/:id', '/family/:id', '/dashboard', '/follow-up'];
-const HOME_GROUP = ['/', '/area/:id', '/street/:id', '/building/:id', '/family/:id'];
+const SHOWN = ['/', '/area/:id', '/street/:id', '/building/:id', '/family/:id', '/dashboard', '/follow-up', '/my-children'];
+const HOME_GROUP = ['/', '/dashboard', '/area/:id', '/street/:id', '/building/:id', '/family/:id'];
 const is = (patterns, path) => patterns.some((p) => matchPath({ path: p, end: true }, path));
 
 // "+" adds a family where you are standing: inside an area / street / building it comes pre-filled
@@ -18,12 +18,12 @@ function addTarget(path) {
 }
 
 function Item({ to, onClick, icon: Icon, label, active }) {
-  const cls = `relative flex-1 flex flex-col items-center justify-center gap-1 h-full text-[11px] font-bold ${active ? 'text-navy' : 'text-gray-500'}`;
+  const cls = `relative flex-1 flex flex-col items-center justify-center gap-1 h-full px-0.5 text-[11px] font-bold ${active ? 'text-navy' : 'text-gray-500'}`;
   const inner = (
     <>
       <Icon className="w-7 h-7" strokeWidth={active ? 2.6 : 2.2} fill={active && Icon === Home ? 'currentColor' : 'none'} />
-      <span>{label}</span>
-      {active && <span className="absolute bottom-1 h-1 w-10 rounded-full bg-navy" />}
+      <span className="text-center leading-tight">{label}</span>
+      {active && <span className="absolute top-0 h-1 w-10 rounded-b-full bg-navy" />}
     </>
   );
   return to
@@ -31,7 +31,7 @@ function Item({ to, onClick, icon: Icon, label, active }) {
     : <button type="button" onClick={onClick} className={cls}>{inner}</button>;
 }
 
-// Bottom navigation: الرئيسية | إضافة | بحث | لوحة التحكم | المتابعة  (RTL: الرئيسية on the right)
+// Bottom navigation: الرئيسية | إضافة | بحث | زياراتي | أولادي في الاعتراف  (RTL: الرئيسية on the right)
 export default function BottomNav() {
   const { user } = useAuth();
   const { pathname } = useLocation();
@@ -58,7 +58,7 @@ export default function BottomNav() {
         <span>بحث</span>
       </button>
       <Item to="/follow-up" icon={ClipboardCheck} label="زياراتي" active={pathname === '/follow-up'} />
-      <Item to="/dashboard" icon={BarChart3} label="الداشبورد" active={pathname === '/dashboard'} />    
+      <Item to="/my-children" icon={Users} label="أولادي في الاعتراف" active={pathname === '/my-children'} />
       </div>
     </nav>
   );

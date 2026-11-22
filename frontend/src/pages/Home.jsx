@@ -1,5 +1,6 @@
 import { useMemo } from 'react';
-import { Search, LogOut, RefreshCw, AlertTriangle } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { Search, LogOut, RefreshCw, AlertTriangle, BarChart3, ChevronLeft } from 'lucide-react';
 import { useAuth } from '../auth.jsx';
 import { discardFailed } from '../db';
 import { useTables, useOutboxCounts, areaLabel } from '../data.js';
@@ -131,6 +132,17 @@ export default function Home() {
                 ))
               )}
             </div>
+
+            {!loading && ownAreas.length > 0 && (
+              <Link to="/dashboard" className="mt-6 flex items-center gap-3 rounded-2xl border border-gold/50 bg-white p-4 text-navy shadow-sm">
+                <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-gold/20 text-maroon"><BarChart3 className="w-6 h-6" /></span>
+                <span className="min-w-0 flex-1">
+                  <span className="block font-bold">ملخص الخدمة</span>
+                  <span className="block text-sm text-gray-500">إحصائيات الأسر وأب الاعتراف</span>
+                </span>
+                <ChevronLeft className="w-5 h-5 text-gray-400" />
+              </Link>
+            )}
 
             {otherChurches.length > 0 && (
               <div className="mt-10">

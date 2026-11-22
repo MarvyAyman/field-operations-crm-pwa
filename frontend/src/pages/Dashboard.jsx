@@ -1,24 +1,10 @@
 import { useMemo, useState } from 'react';
-import { Home, Users, UserRound, ChevronDown } from 'lucide-react';
-import { useAuth } from '../auth.jsx';
+import { Link } from 'react-router-dom';
+import { Home, Users, UserRound, ChevronDown, ChevronRight } from 'lucide-react';
 import { useTables, areaLabel } from '../data.js';
 
-const iso = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 const ar = (n) => Number(n).toLocaleString('ar-EG', { useGrouping: false });
 const hasConfessor = (p) => !!(p.confessor_id || p.extra?.confessor_other || (p.extra?.confessor_more || []).length);
-
-// the period as [from, to] dates (YYYY-MM-DD) + the card label; the week starts on Saturday
-function periodRange(kind, now) {
-  if (kind === 'week') {
-    const from = new Date(now.getFullYear(), now.getMonth(), now.getDate() - ((now.getDay() + 1) % 7));
-    const to = new Date(from.getFullYear(), from.getMonth(), from.getDate() + 6);
-    return { from: iso(from), to: iso(to), label: 'زيارات هذا الأسبوع' };
-  }
-  if (kind === 'year') return { from: `${now.getFullYear()}-01-01`, to: `${now.getFullYear()}-12-31`, label: `زيارات ${ar(now.getFullYear())}` };
-  const from = new Date(now.getFullYear(), now.getMonth(), 1);
-  const to = new Date(now.getFullYear(), now.getMonth() + 1, 0);
-  return { from: iso(from), to: iso(to), label: `زيارات ${now.toLocaleDateString('ar-EG', { month: 'long' })}` };
-}
 
 function Stat({ icon: Icon, label, value, unit, wide }) {
   return (
@@ -35,27 +21,10 @@ function Stat({ icon: Icon, label, value, unit, wide }) {
   );
 }
 
-// Statistics: my visited families (by period) + general numbers of families / confessors (filter by area)
+// Statistics: general numbers of families / confessors (filter by area)
 export default function Dashboard() {
-  const { user } = useAuth();
-  const { data } = useTables(['areas', 'streets', 'buildings', 'families', 'people', 'visits']);
-  const [kind, setKind] = useState('month');
+  const { data } = useTables(['areas', 'streets', 'buildings', 'families', 'people']);
   const [areaId, setAreaId] = useState('');
-  const now = new Date();
-  const range = periodRange(kind, now);
-
-  // families I visited in the period (a visit not synced yet was made on this phone, so it is mine too)
-  const visited = useMemo(() => {
-    const set = new Set();
-    let count = 0;
-    for (const v of data.visits) {
-      if (v.deleted_at || !v.visited_on || v.visited_on < range.from || v.visited_on > range.to) continue;
-      if (!(v.created_by ? v.created_by === user?.id : v._pending)) continue;
-      set.add(v.family_id);
-      count += 1;
-    }
-    return { families: set.size, visits: count };
-  }, [data.visits, user?.id, range.from, range.to]);
 
   const ownAreas = useMemo(
     () => data.areas.filter((a) => a.kind !== 'other_church' && !a.deleted_at)
@@ -78,44 +47,18 @@ export default function Dashboard() {
     return { families: families.length, familiesConf: withConf.size, peopleConf: peopleWithConf };
   }, [data.streets, data.buildings, data.families, data.people, areaId]);
 
-  const tabs = [['week', 'هذا الأسبوع'], ['month', 'هذا الشهر'], ['year', 'هذا العام']];
-
   return (
     <div className="pb-32">
       <header className="bg-navy text-white p-4 pb-5 rounded-b-2xl shadow-md border-b-4 border-gold">
-        <p className="text-sm text-white/80 text-right">ملخص الخدمة</p>
+        <div className="flex items-center justify-between text-sm text-white/80">
+          <Link to="/" className="flex items-center gap-1 rounded-full bg-white/10 py-1.5 pl-3 pr-2"><ChevronRight className="w-4 h-4" /> رجوع</Link>
+          <span>ملخص الخدمة</span>
+        </div>
         <h1 className="mt-6 text-3xl font-bold">الإحصائيات</h1>
-        <p className="mt-3 text-sm text-white/80">نظرة عامة على الأسر والزيارات</p>
+        <p className="mt-3 text-sm text-white/80">نظرة عامة على الأسر وأب الاعتراف</p>
       </header>
 
       <main className="p-4 space-y-5">
-        <div className="flex items-center justify-between gap-3">
-          <h2 className="text-lg font-bold text-navy">الأسر التي تمت زيارتها</h2>
-          <div role="tablist" className="flex rounded-2xl bg-gray-200/60 p-1 text-sm">
-            {tabs.map(([k, l]) => (
-              <button
-                key={k}
-                type="button"
-                role="tab"
-                aria-selected={kind === k}
-                onClick={() => setKind(k)}
-                className={`rounded-xl px-3 py-2 font-bold ${kind === k ? 'bg-maroon text-white' : 'text-gray-500'}`}
-              >
-                {l}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        <div className="rounded-2xl border border-gold bg-maroon p-5 text-white shadow-md">
-          <p className="text-white/80 text-sm">{range.label}</p>
-          <p className="mt-1">أسر تمت زيارتها</p>
-          <p className="mt-3 flex items-baseline gap-2 text-white"><span data-visited className="text-4xl font-bold">{ar(visited.families)}</span><span className="text-sm text-white/80">أسرة</span></p>
-          <p data-visits className="mt-2 border-t border-white/20 pt-2 text-sm text-white/80">إجمالي الزيارات: <span className="font-bold text-white">{ar(visited.visits)}</span> {visited.visits === 1 ? 'زيارة' : visited.visits === 2 ? 'زيارتان' : 'زيارات'}</p>
-        </div>
-
-        <hr className="border-gray-200" />
-
         <h2 className="text-lg font-bold text-navy">بيانات الأسر وأب الاعتراف</h2>
         <label className="block">
           <span className="block text-gray-500 text-sm mb-2">تصفية حسب المنطقة</span>

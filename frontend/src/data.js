@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState, useSyncExternalStore } from 'react';
 import { useAuth } from './auth.jsx';
 import { getAll, getOutboxCounts, LOCAL_CHANGE_EVENT } from './db';
 
@@ -175,13 +175,49 @@ export function diffPatch(original, fields) {
 // React hooks that read the local database
 // ---------------------------------------------------------------
 
+// ---- shared table cache -------------------------------------------------------------------------------------------
+// Every screen used to re-read its tables from IndexedDB on mount and show "loading" until that finished (the delay
+// grows with the data). Now the rows are kept in memory: a screen opened a second time renders at once from the cache,
+// while a background refresh runs only when something changed (a local edit or a sync).
+let localVersion = 0;
+let storeRev = 0;
+const cache = new Map(); // table -> { rows, v }
+const inflight = new Map(); // `${table}@${v}` -> Promise
+const listeners = new Set();
+if (typeof window !== 'undefined') window.addEventListener(LOCAL_CHANGE_EVENT, () => { localVersion += 1; }); // registered first, so it runs before the hooks' own listeners
+const subscribe = (fn) => { listeners.add(fn); return () => listeners.delete(fn); };
+const getRev = () => storeRev;
+
+let seqCounter = 0;
+function fetchTable(table, v) {
+  const k = `${table}@${v}`;
+  if (!inflight.has(k)) {
+    const seq = (seqCounter += 1); // a slow, older read must never overwrite the result of a newer one
+    inflight.set(k, getAll(table).then((rows) => {
+      inflight.delete(k);
+      if (seq < (cache.get(table)?.seq || 0)) return;
+      cache.set(table, { rows, v, seq });
+      storeRev += 1;
+      listeners.forEach((fn) => fn());
+    }).catch((e) => { inflight.delete(k); console.error(e); }));
+  }
+  return inflight.get(k);
+}
+
+// loads (or refreshes) the tables for this data version; resolves with { table: rows }
+export async function prewarmTables(names, v) {
+  const ver = v ?? `${localVersion}`;
+  await Promise.all(names.filter((n) => cache.get(n)?.v !== ver).map((n) => fetchTable(n, ver)));
+  return Object.fromEntries(names.map((n) => [n, cache.get(n)?.rows || []]));
+}
+
 // Re-runs `callback` whenever the server was synced OR something changed on this device
 function useLocalRefresh() {
   const { syncVersion } = useAuth();
-  const [localVersion, setLocalVersion] = useState(0);
+  const [, setTick] = useState(0);
 
   useEffect(() => {
-    const bump = () => setLocalVersion((v) => v + 1);
+    const bump = () => setTick((t) => t + 1);
     window.addEventListener(LOCAL_CHANGE_EVENT, bump);
     return () => window.removeEventListener(LOCAL_CHANGE_EVENT, bump);
   }, []);
@@ -191,26 +227,22 @@ function useLocalRefresh() {
 
 // const { data, loading } = useTables(['families', 'visits'])  ->  data.families, data.visits
 export function useTables(names) {
-  const version = useLocalRefresh();
+  const v = useLocalRefresh();
   const key = names.join(',');
-  const [state, setState] = useState(() => ({
-    data: Object.fromEntries(names.map((n) => [n, []])),
-    loading: true,
-  }));
+  const rev = useSyncExternalStore(subscribe, getRev);
 
   useEffect(() => {
-    let cancelled = false;
     const list = key.split(',');
-    Promise.all(list.map(getAll))
-      .then((rows) => {
-        if (cancelled) return;
-        setState({ data: Object.fromEntries(list.map((n, i) => [n, rows[i]])), loading: false });
-      })
-      .catch(console.error);
-    return () => { cancelled = true; };
-  }, [key, version]);
+    const stale = list.filter((n) => cache.get(n)?.v !== v);
+    if (stale.length) Promise.all(stale.map((n) => fetchTable(n, v)));
+  }, [key, v]);
 
-  return state;
+  return useMemo(() => {
+    const list = key.split(',');
+    const ready = list.every((n) => cache.has(n));
+    return { data: Object.fromEntries(list.map((n) => [n, cache.get(n)?.rows || []])), loading: !ready };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [key, rev]);
 }
 
 // { pending, failed } = changes waiting to be sent / rejected by the server

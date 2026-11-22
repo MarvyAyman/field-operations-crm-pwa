@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { ChevronLeft, ChevronRight, Check, Users } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Check, Users, X } from 'lucide-react';
 import BottomSheet from '../components/BottomSheet.jsx';
 import { useAuth } from '../auth.jsx';
 import { useTables } from '../data.js';
@@ -12,6 +12,26 @@ const ar = (n) => Number(n).toLocaleString('ar-EG', { useGrouping: false });
 const monthName = (y, m) => new Date(y, m, 1).toLocaleDateString('ar-EG', { month: 'long', year: 'numeric' });
 const dayTitle = (y, m, d) => new Date(y, m, d, 12).toLocaleDateString('ar-EG', { weekday: 'long', day: 'numeric', month: 'long' });
 
+// the period as [from, to] dates + the card label; the week starts on Saturday
+function periodRange(kind, now) {
+  if (kind === 'week') {
+    const from = new Date(now.getFullYear(), now.getMonth(), now.getDate() - ((now.getDay() + 1) % 7));
+    const to = new Date(from.getFullYear(), from.getMonth(), from.getDate() + 6);
+    return { from: iso(from.getFullYear(), from.getMonth(), from.getDate()), to: iso(to.getFullYear(), to.getMonth(), to.getDate()), label: 'زيارات هذا الأسبوع' };
+  }
+  if (kind === 'year') return { from: `${now.getFullYear()}-01-01`, to: `${now.getFullYear()}-12-31`, label: `زيارات ${ar(now.getFullYear())}` };
+  const last = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+  return { from: iso(now.getFullYear(), now.getMonth(), 1), to: iso(now.getFullYear(), now.getMonth(), last), label: `زيارات ${now.toLocaleDateString('ar-EG', { month: 'long' })}` };
+}
+// a free "from … to" range (either end can stay empty)
+function customRange(from, to) {
+  const [a, b] = from && to && from > to ? [to, from] : [from, to];
+  const fmt = (d) => new Date(...d.split('-').map((n, i) => (i === 1 ? n - 1 : +n)), 12).toLocaleDateString('ar-EG', { day: 'numeric', month: 'long', year: 'numeric' });
+  const label = a && b ? `زيارات من ${fmt(a)} إلى ${fmt(b)}` : a ? `زيارات من ${fmt(a)}` : `زيارات حتى ${fmt(b)}`;
+  return { from: a || '0000-01-01', to: b || '9999-12-31', label };
+}
+const TABS = [['week', 'هذا الأسبوع'], ['month', 'هذا الشهر'], ['year', 'هذا العام']];
+
 // "Visit tracking": a month calendar of the visits registered by the logged-in member
 export default function FollowUp() {
   const { user, syncing, syncError } = useAuth();
@@ -20,6 +40,11 @@ export default function FollowUp() {
   const todayIso = iso(now.getFullYear(), now.getMonth(), now.getDate());
   const [cursor, setCursor] = useState({ y: now.getFullYear(), m: now.getMonth() });
   const [picked, setPicked] = useState(null); // 'YYYY-MM-DD'
+  const [kind, setKind] = useState('month');
+  const [from, setFrom] = useState('');
+  const [to, setTo] = useState('');
+  const custom = !!(from || to);
+  const range = custom ? customRange(from, to) : periodRange(kind, now);
 
   // my visits by day (a visit not yet synced was made on this phone, so it is mine too)
   const byDay = useMemo(() => {
@@ -33,6 +58,18 @@ export default function FollowUp() {
     }
     return map;
   }, [data.visits, user?.id]);
+
+  // my visits in the chosen period: distinct families + total visits
+  const totals = useMemo(() => {
+    const fams = new Set();
+    let visits = 0;
+    for (const [day, list] of byDay) {
+      if (day < range.from || day > range.to) continue;
+      visits += list.length;
+      list.forEach((v) => fams.add(v.family_id));
+    }
+    return { families: fams.size, visits };
+  }, [byDay, range.from, range.to]);
 
   const { y, m } = cursor;
   const offset = (new Date(y, m, 1).getDay() + 1) % 7; // Saturday = 0
@@ -69,6 +106,34 @@ export default function FollowUp() {
       </header>
 
       <main className="flex flex-1 flex-col p-4 gap-3">
+        <div role="tablist" className="flex rounded-2xl bg-gray-200/60 p-1 text-sm">
+          {TABS.map(([k, l]) => (
+            <button key={k} type="button" role="tab" aria-selected={!custom && kind === k} onClick={() => { setKind(k); setFrom(''); setTo(''); }} className={`flex-1 rounded-xl px-3 py-2 font-bold ${!custom && kind === k ? 'bg-maroon text-white' : 'text-gray-500'}`}>{l}</button>
+          ))}
+        </div>
+
+        <div className="flex items-center gap-2 text-sm">
+          <label className="flex flex-1 items-center gap-2 rounded-xl border border-gray-200 bg-white px-3 py-2">
+            <span className="text-gray-500">من</span>
+            <input type="date" aria-label="من تاريخ" value={from} onChange={(e) => setFrom(e.target.value)} className="min-w-0 flex-1 bg-transparent font-bold text-navy" />
+          </label>
+          <label className="flex flex-1 items-center gap-2 rounded-xl border border-gray-200 bg-white px-3 py-2">
+            <span className="text-gray-500">إلى</span>
+            <input type="date" aria-label="إلى تاريخ" value={to} onChange={(e) => setTo(e.target.value)} className="min-w-0 flex-1 bg-transparent font-bold text-navy" />
+          </label>
+          {custom && (
+            <button type="button" onClick={() => { setFrom(''); setTo(''); }} aria-label="مسح المدة" className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white border border-gray-200 text-gray-500"><X className="w-5 h-5" /></button>
+          )}
+        </div>
+
+        <div className="rounded-2xl border border-gold bg-maroon p-4 text-white shadow-md">
+          <p className="text-white/80 text-sm">{range.label}</p>
+          <div className="mt-1 flex items-end justify-between gap-3">
+            <p className="flex items-baseline gap-2"><span data-visited className="text-4xl font-bold">{ar(totals.families)}</span><span className="text-sm text-white/80">أسرة تمت زيارتها</span></p>
+            <p data-visits className="text-sm text-white/80">إجمالي الزيارات: <span className="font-bold text-white">{ar(totals.visits)}</span></p>
+          </div>
+        </div>
+
         <div className="flex items-center justify-between">
           <button type="button" onClick={() => move(-1)} aria-label="الشهر السابق" className="flex h-10 w-10 items-center justify-center rounded-xl bg-white shadow-sm border border-gray-200">
             <ChevronRight className="w-5 h-5" />
