@@ -52,7 +52,7 @@ function StreetSheet({ street, siblings, onDone }) {
           <button type="submit" className="w-full rounded-xl bg-maroon p-4 font-bold text-white">حفظ</button>
           {street.buildingCount > 0 ? (
             <p className="rounded-xl bg-gray-50 p-3 text-center text-sm text-gray-500">
-              لا يمكن حذف الشارع لأن فيه {ar(street.buildingCount)} مبنى. انقلي المباني أو احذفيها أولًا.
+              لا يمكن حذف الشارع لأن فيه {ar(street.buildingCount)} مبنى. انقل المباني أو احذفيها أولًا.
             </p>
           ) : (
             <button type="button" onClick={() => setConfirming(true)} className="flex w-full items-center justify-center gap-2 rounded-xl p-3 font-bold text-red-600">
@@ -99,7 +99,7 @@ export default function Area() {
       <div className="p-4 space-y-3">
         {streets.length > 0 && (
           <div className="flex items-center justify-between">
-            <p className="text-sm text-gray-500">{editMode ? 'اضغطي على الشارع لتعديل اسمه أو حذفه' : ''}</p>
+            <p className="text-sm text-gray-500">{editMode ? 'اضغط على الشارع لتعديل اسمه أو حذفه' : ''}</p>
             <button
               type="button"
               role="switch"

@@ -14,3 +14,20 @@ body {
   font-family: "Tajawal", sans-serif;
   direction: rtl;
 }
+
+/* Mobile browsers (iOS Safari especially) draw <input type="date"> with their own height, width and centred text,
+   so it looked different from the other fields. Make it behave like a normal text field. */
+html { -webkit-text-size-adjust: 100%; }
+input[type="date"] {
+  -webkit-appearance: none;
+  appearance: none;
+  display: block;
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  min-height: 3rem;
+  text-align: right;
+  font-family: inherit;
+}
+input[type="date"]::-webkit-date-and-time-value { text-align: right; min-height: 1.5em; margin: 0; }
+input, select, textarea { max-width: 100%; }
