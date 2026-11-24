@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { Link, useNavigate, useParams } from 'react-router-dom';
+import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
 import { Plus, Pencil, Phone, Trash2, ClipboardList, Copy, Check, ChevronDown, StickyNote } from 'lucide-react';
 import { useAuth } from '../auth.jsx';
 import BottomSheet from '../components/BottomSheet.jsx';
@@ -128,7 +128,12 @@ export default function Family() {
   const area = data.areas.find((a) => a.id === street?.area_id);
 
   // view-only by default; the pencil switches editing on. Leaving the page always brings it back to view-only.
-  const [editMode, setEditMode] = useState(false);
+  // edit mode is kept in the history entry: opening a person / visit / family form from here and coming back
+  // (save, back arrow or the browser back button) returns to the page still in edit mode
+  const location = useLocation();
+  const editMode = !!location.state?.edit;
+  const setEditMode = (fn) => navigate(location.pathname, { replace: true, state: { edit: fn(editMode) } });
+  const editState = editMode ? { edit: true } : undefined; // passed to the forms so they can return here in edit mode
   const [visitToDelete, setVisitToDelete] = useState(null);
   const [showAllVisits, setShowAllVisits] = useState(false);
   const [onlyNotes, setOnlyNotes] = useState(false);
@@ -184,6 +189,7 @@ export default function Family() {
         <div className="flex gap-2">
           <Link
             to={`/family/${familyId}/visit/add`}
+            state={editState}
             className="flex-1 bg-maroon text-white font-bold p-4 rounded-xl flex items-center justify-center gap-2"
           >
             <ClipboardList className="w-5 h-5" /> تسجيل زيارة
@@ -202,13 +208,12 @@ export default function Family() {
           </button>
         </div>
         {(() => {
-          const hasInfo = labelOf(family.contract_type_id) || family.membership_no || family.last_visit_on || building?.notes || family.notes || internalNote;
-          if (!hasInfo && !editMode) return null;
+          const hasInfo = labelOf(family.contract_type_id) || family.membership_no || building?.notes || family.notes || internalNote;          if (!hasInfo && !editMode) return null;
           const content = (
             <>
               {labelOf(family.contract_type_id) && <p className="text-sm text-gray-600">نوع العقد: {labelOf(family.contract_type_id)}</p>}
               {family.membership_no && <p className="text-sm text-gray-600">رقم العضوية: {family.membership_no}</p>}
-              {family.last_visit_on && <p className="text-sm text-gray-600">تاريخ آخر زيارة: {family.last_visit_on}</p>}
+              {/* {family.last_visit_on && <p className="text-sm text-gray-600">تاريخ آخر زيارة: {family.last_visit_on}</p>} */}
               {building?.notes && <p className="text-sm text-gray-600">عن العمارة: {building.notes}</p>}
               {family.notes && <p className="text-gray-700 whitespace-pre-line">{family.notes}</p>}
               {internalNote && (
@@ -221,9 +226,12 @@ export default function Family() {
           // edit mode: the box opens the family form (data, location, "moved", internal note)
           if (editMode) {
             return (
-              <Link to={`/family/${familyId}/edit`} className="flex items-center gap-3 bg-white rounded-xl p-4 shadow-sm border-2 border-gold">
+              <Link to={`/family/${familyId}/edit`} state={editState} className="flex items-center gap-3 bg-white rounded-xl p-4 shadow-sm border-2 border-gold">
                 <div className="flex-1 min-w-0 space-y-2">
-                  {hasInfo ? content : <p className="text-gray-500">اضغط لتعديل بيانات الأسرة والموقع</p>}
+                  {hasInfo && content}
+<p className={`font-bold text-maroon ${hasInfo ? 'text-xs border-t border-gray-100 pt-2' : 'text-sm'}`}>
+  اضغط هنا لتعديل بيانات الأسرة والموقع
+</p>
                 </div>
                 <Pencil className="w-5 h-5 text-maroon shrink-0" />
               </Link>
@@ -235,7 +243,7 @@ export default function Family() {
         <Section
           title={`الأفراد (${people.length})`}
           action={
-            <Link to={`/family/${familyId}/person/add`} className="text-maroon font-bold flex items-center gap-1">
+            <Link to={`/family/${familyId}/person/add`} state={editState} className="text-maroon font-bold flex items-center gap-1">
               <Plus className="w-4 h-4" /> إضافة
             </Link>
           }
@@ -262,6 +270,7 @@ export default function Family() {
                 <Link
                   key={p.id}
                   to={`/person/${p.id}/edit`}
+                  state={editState}
                   className="flex items-center gap-3 bg-white rounded-xl p-3 shadow-sm border-2 border-gold"
                 >
                   <span className="flex-1 min-w-0">
@@ -351,7 +360,7 @@ export default function Family() {
                   return (
                     <div key={v.id} className="flex items-center gap-2 bg-white rounded-xl p-3 shadow-sm border-2 border-gold">
                       {main}
-                      <Link to={`/visit/${v.id}/edit`} aria-label="تعديل الزيارة" className="w-11 h-11 rounded-full bg-gray-100 text-maroon flex items-center justify-center shrink-0">
+                      <Link to={`/visit/${v.id}/edit`} state={editState} aria-label="تعديل الزيارة" className="w-11 h-11 rounded-full bg-gray-100 text-maroon flex items-center justify-center shrink-0">
                         <Pencil className="w-5 h-5" />
                       </Link>
                       <button type="button" onClick={() => setVisitToDelete(v)} aria-label="حذف الزيارة" className="w-11 h-11 rounded-full bg-red-50 text-red-600 flex items-center justify-center shrink-0">

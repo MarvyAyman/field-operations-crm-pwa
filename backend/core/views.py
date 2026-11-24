@@ -8,7 +8,7 @@ from django.db.models import Max
 from django.utils import timezone
 from django.utils.dateparse import parse_datetime
 from rest_framework import viewsets
-from rest_framework.exceptions import ValidationError
+from rest_framework.exceptions import PermissionDenied, ValidationError
 from rest_framework.authtoken.models import Token
 from rest_framework.decorators import (
     api_view, authentication_classes, permission_classes, action
@@ -344,14 +344,23 @@ class VisitViewSet(OfflineWritableMixin, viewsets.ModelViewSet):
         super().perform_create(serializer)
         self._refresh_last_visit(serializer.instance.family_id)
 
+    @staticmethod
+    def _own_only(member, visit):
+        """A visit can only be edited / deleted by the account that registered it."""
+        if visit.created_by != member.id:
+            raise PermissionDenied('يمكنك تعديل أو حذف زياراتك فقط')
+
     def perform_update(self, serializer):
+        self._own_only(get_active_member(self.request.user), serializer.instance)
         old_family = serializer.instance.family_id
         super().perform_update(serializer)
         self._refresh_last_visit(old_family)
         self._refresh_last_visit(serializer.instance.family_id)
 
     def destroy(self, request, *args, **kwargs):
-        family_id = self.get_object().family_id
+        visit = self.get_object()
+        self._own_only(get_active_member(request.user), visit)
+        family_id = visit.family_id
         response = super().destroy(request, *args, **kwargs)
         self._refresh_last_visit(family_id)
         return response

@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { Save, Trash2, UserPlus, CheckCircle2 } from 'lucide-react';
 import { useAuth } from '../auth.jsx';
 import { createRow, updateRow, deleteRow } from '../db';
@@ -11,6 +11,7 @@ import PersonFields from '../components/PersonFields.jsx';
 export default function PersonForm() {
   const { familyId: familyParam, personId } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
   const { user, runSync } = useAuth();
   const { data, loading } = useTables(['families', 'people', 'lookup_values']);
 
@@ -34,6 +35,7 @@ export default function PersonForm() {
   if (!family || (editing && !original)) return <NotFound back="/" />;
 
   const back = `/family/${familyId}`;
+  const backState = location.state?.edit ? { edit: true } : undefined; // came from the family page in edit mode
 
   // after = 'close' -> back to the family | 'more' -> keep the form open for the next person
   const save = async (after) => {
@@ -44,7 +46,7 @@ export default function PersonForm() {
 
     // "save and close" with an empty form just closes (nothing to save)
     if (!fields.full_name && after === 'close' && !editing && Object.keys(edits).every((k) => !String(edits[k] ?? '').trim())) {
-      navigate(back, { replace: true });
+      navigate(back, { replace: true, state: backState });
       return;
     }
     if (!fields.full_name) return setError('اكتب اسم الفرد');
@@ -72,7 +74,7 @@ export default function PersonForm() {
         nameRef.current?.focus();
         return;
       }
-      navigate(back, { replace: true });
+      navigate(back, { replace: true, state: backState });
     } catch (err) {
       console.error(err);
       setError('تعذّر الحفظ على الجهاز. حاول مرة أخرى.');
@@ -86,12 +88,12 @@ export default function PersonForm() {
     if (!window.confirm(`حذف ${original.full_name}؟`)) return;
     await deleteRow('people', personId);
     runSync();
-    navigate(back, { replace: true });
+    navigate(back, { replace: true, state: backState });
   };
 
   return (
     <div className="pb-20">
-      <PageHeader title={editing ? 'تعديل فرد' : 'إضافة فرد'} subtitle={family.family_name} back={back} />
+      <PageHeader title={editing ? 'تعديل فرد' : 'إضافة فرد'} subtitle={family.family_name} back={back} backState={backState} />
 
       <form className="p-4 space-y-4" onSubmit={handleSave} noValidate>
         {!editing && members.length > 0 && (

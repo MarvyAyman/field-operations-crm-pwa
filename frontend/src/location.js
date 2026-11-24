@@ -44,3 +44,43 @@ export function locationErrorMessage(err) {
       return 'تعذّر تحديد الموقع لسبب غير معروف. حاول مرة أخرى.';
   }
 }
+
+// ---- quality + "best reading wins" -------------------------------------------------------------------------------
+export const GOOD_ACCURACY_M = 30;   // "دقيق"
+export const FAR_FROM_NEIGHBOURS_M = 1500; // a reading this far from every located building on the street is not "on site"
+
+// "دقيق" | "متوسط" | "تقريبي" | null (no position / accuracy unknown)
+export function accuracyLabel(b) {
+  if (!hasLocation(b)) return null;
+  const a = b.location_accuracy;
+  if (!Number.isFinite(a)) return null;
+  if (a <= GOOD_ACCURACY_M) return 'دقيق';
+  if (a <= WEAK_ACCURACY_M) return 'متوسط';
+  return 'تقريبي';
+}
+
+export function distanceMeters(lat1, lng1, lat2, lng2) {
+  const rad = (d) => (d * Math.PI) / 180;
+  const a = Math.sin(rad(lat2 - lat1) / 2) ** 2
+    + Math.cos(rad(lat1)) * Math.cos(rad(lat2)) * Math.sin(rad(lng2 - lng1) / 2) ** 2;
+  return 6371000 * 2 * Math.asin(Math.sqrt(a));
+}
+
+// Should this reading become the building's saved position?
+//  - the building has none  -> yes (even a rough one is better than nothing; a better one replaces it later)
+//  - it has one             -> only a clearly better reading (30% tighter and at least 10 m better),
+//                              and never one that jumps far away from the saved one (probably not on site)
+//  - `neighbours`: other buildings of the same street that have a position (to reject readings taken far from the street)
+export function shouldSavePosition(building, reading, neighbours = []) {
+  if (!reading || !Number.isFinite(reading.lat) || !Number.isFinite(reading.lng) || !Number.isFinite(reading.accuracy)) return false;
+  if (hasLocation(building)) {
+    const old = Number.isFinite(building.location_accuracy) ? building.location_accuracy : WEAK_ACCURACY_M;
+    const better = reading.accuracy < old * 0.7 && old - reading.accuracy >= 10;
+    const jump = distanceMeters(building.lat, building.lng, reading.lat, reading.lng);
+    return better && jump <= old + reading.accuracy + 150;
+  }
+  const located = neighbours.filter(hasLocation);
+  if (located.length === 0) return true;
+  const nearest = Math.min(...located.map((n) => distanceMeters(n.lat, n.lng, reading.lat, reading.lng)));
+  return nearest <= FAR_FROM_NEIGHBOURS_M;
+}

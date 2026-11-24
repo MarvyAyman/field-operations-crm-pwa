@@ -93,11 +93,11 @@ export default function FollowUp() {
   const [py, pm, pd] = picked ? picked.split('-').map(Number) : [];
 
   return (
-    <div className="flex flex-col min-h-dvh pb-28">
+    <div className="flex flex-col min-h-dvh pb-28 overflow-x-hidden">
       <header className="bg-navy text-white p-4 pb-5 rounded-b-2xl shadow-md border-b-4 border-gold">
-        <div className="flex items-start justify-between gap-3">
-          <h1 className="text-2xl font-bold">تتبع الزيارات</h1>
-          {/* <span className="flex items-center gap-2 rounded-full border border-white/30 px-3 py-1.5 text-xs">
+        <div className="flex flex-wrap items-start justify-between gap-x-3 gap-y-2">
+          <h1 className="min-w-0 text-2xl font-bold">تتبع الزيارات</h1>
+          {/* <span className="flex shrink-0 items-center gap-2 rounded-full border border-white/30 px-3 py-1.5 text-xs">
             <span className={`h-2 w-2 rounded-full ${syncError ? 'bg-red-400' : syncing ? 'bg-amber-300' : 'bg-green-400'}`} />
             {syncError ? 'غير متزامن' : syncing ? 'جارٍ المزامنة' : 'متزامن'}
           </span> */}
@@ -105,21 +105,21 @@ export default function FollowUp() {
         <p className="mt-2 text-sm text-white/80">اختر يومًا لعرض الزيارات</p>
       </header>
 
-      <main className="flex flex-1 flex-col p-4 gap-3">
+      <main className="flex min-w-0 flex-1 flex-col p-4 gap-3">
         <div role="tablist" className="flex rounded-2xl bg-gray-200/60 p-1 text-sm">
           {TABS.map(([k, l]) => (
-            <button key={k} type="button" role="tab" aria-selected={!custom && kind === k} onClick={() => { setKind(k); setFrom(''); setTo(''); }} className={`flex-1 rounded-xl px-3 py-2 font-bold ${!custom && kind === k ? 'bg-maroon text-white' : 'text-gray-500'}`}>{l}</button>
+            <button key={k} type="button" role="tab" aria-selected={!custom && kind === k} onClick={() => { setKind(k); setFrom(''); setTo(''); }} className={`min-w-0 flex-1 rounded-xl px-1.5 py-2 font-bold leading-tight ${!custom && kind === k ? 'bg-maroon text-white' : 'text-gray-500'}`}>{l}</button>
           ))}
         </div>
 
-        <div className="flex items-center gap-2 text-sm">
-          <label className="flex flex-1 items-center gap-2 rounded-xl border border-gray-200 bg-white px-3 py-2">
+        <div className="flex flex-wrap items-center gap-2 text-sm">
+          <label className="flex min-w-[9.5rem] flex-1 items-center gap-2 rounded-xl border border-gray-200 bg-white px-3 py-2">
             <span className="text-gray-500">من</span>
-            <input type="date" aria-label="من تاريخ" value={from} onChange={(e) => setFrom(e.target.value)} className="min-w-0 flex-1 bg-transparent font-bold text-navy" />
+            <input type="date" aria-label="من تاريخ" value={from} onChange={(e) => setFrom(e.target.value)} className="min-w-0 flex-1 bg-transparent text-sm font-bold text-navy" />
           </label>
-          <label className="flex flex-1 items-center gap-2 rounded-xl border border-gray-200 bg-white px-3 py-2">
+          <label className="flex min-w-[9.5rem] flex-1 items-center gap-2 rounded-xl border border-gray-200 bg-white px-3 py-2">
             <span className="text-gray-500">إلى</span>
-            <input type="date" aria-label="إلى تاريخ" value={to} onChange={(e) => setTo(e.target.value)} className="min-w-0 flex-1 bg-transparent font-bold text-navy" />
+            <input type="date" aria-label="إلى تاريخ" value={to} onChange={(e) => setTo(e.target.value)} className="min-w-0 flex-1 bg-transparent text-sm font-bold text-navy" />
           </label>
           {custom && (
             <button type="button" onClick={() => { setFrom(''); setTo(''); }} aria-label="مسح المدة" className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white border border-gray-200 text-gray-500"><X className="w-5 h-5" /></button>
@@ -128,27 +128,27 @@ export default function FollowUp() {
 
         <div className="rounded-2xl border border-gold bg-maroon p-4 text-white shadow-md">
           <p className="text-white/80 text-sm">{range.label}</p>
-          <div className="mt-1 flex items-end justify-between gap-3">
+          <div className="mt-1 flex flex-wrap items-end justify-between gap-x-3 gap-y-1">
             <p className="flex items-baseline gap-2"><span data-visited className="text-4xl font-bold">{ar(totals.families)}</span><span className="text-sm text-white/80">أسرة تمت زيارتها</span></p>
-            <p data-visits className="text-sm text-white/80">إجمالي الزيارات: <span className="font-bold text-white">{ar(totals.visits)}</span></p>
+            <p data-visits className="min-w-0 text-sm text-white/80">إجمالي الزيارات: <span className="font-bold text-white">{ar(totals.visits)}</span></p>
           </div>
         </div>
 
         <div className="flex items-center justify-between">
-          <button type="button" onClick={() => move(-1)} aria-label="الشهر السابق" className="flex h-10 w-10 items-center justify-center rounded-xl bg-white shadow-sm border border-gray-200">
+          <button type="button" onClick={() => move(-1)} aria-label="الشهر السابق" className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white shadow-sm border border-gray-200">
             <ChevronRight className="w-5 h-5" />
           </button>
-          <h2 className="text-xl font-bold text-navy">{monthName(y, m)}</h2>
-          <button type="button" onClick={() => move(1)} aria-label="الشهر التالي" className="flex h-10 w-10 items-center justify-center rounded-xl bg-white shadow-sm border border-gray-200">
+          <h2 className="min-w-0 text-center text-xl font-bold text-navy">{monthName(y, m)}</h2>
+          <button type="button" onClick={() => move(1)} aria-label="الشهر التالي" className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white shadow-sm border border-gray-200">
             <ChevronLeft className="w-5 h-5" />
           </button>
         </div>
 
-        <div className="flex flex-1 flex-col rounded-2xl border border-gray-200 bg-white p-3 shadow-sm">
-          <div className="grid grid-cols-7 pb-2 text-center text-[11px] text-gray-500 border-b border-gray-100">
+        <div className="flex min-h-[22rem] min-w-0 flex-1 flex-col rounded-2xl border border-gray-200 bg-white p-2 shadow-sm">
+          <div className="grid grid-cols-[repeat(7,minmax(0,1fr))] pb-2 text-center text-[11px] text-gray-500 border-b border-gray-100">
             {WEEK.map((w) => <span key={w}>{w}</span>)}
           </div>
-          <div className="grid flex-1 grid-cols-7 pt-1" style={{ gridTemplateRows: `repeat(${rows}, minmax(0, 1fr))` }}>
+          <div className="grid flex-1 grid-cols-[repeat(7,minmax(0,1fr))] pt-1" style={{ gridTemplateRows: `repeat(${rows}, minmax(0, 1fr))` }}>
             {cells.map((d, i) => {
               if (!d) return <span key={`e${i}`} />;
               const key = iso(y, m, d);
@@ -160,7 +160,7 @@ export default function FollowUp() {
                   type="button"
                   onClick={() => setPicked(key)}
                   aria-label={`${dayTitle(y, m, d)}${has ? ' — فيه زيارات' : ''}`}
-                  className={`m-0.5 flex flex-col items-center justify-center gap-1 rounded-xl text-base font-bold ${
+                  className={`m-0.5 flex min-w-0 flex-col items-center justify-center gap-1 rounded-xl text-base font-bold ${
                     selected ? 'bg-maroon text-white ring-2 ring-gold' : key === todayIso ? 'text-maroon ring-1 ring-maroon/40' : 'text-navy'
                   }`}
                 >
@@ -174,7 +174,7 @@ export default function FollowUp() {
           </div>
         </div>
 
-        <div className="flex items-center gap-4 text-xs text-gray-500">
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-gray-500">
           <span className="flex items-center gap-1.5"><span className="flex h-4 w-4 items-center justify-center rounded-full bg-gold/30"><Check className="h-2.5 w-2.5" strokeWidth={3.5} /></span>يوم تمت فيه زيارة</span>
           <span className="flex items-center gap-1.5"><span className="h-4 w-4 rounded-full bg-maroon" />اليوم المحدد</span>
         </div>

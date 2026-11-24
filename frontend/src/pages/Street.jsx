@@ -49,18 +49,21 @@ function BuildingRow({ b }) {
           </a>
         )}
 
-        <button
-          type="button"
-          onClick={capture}
-          disabled={busy}
-          title={located ? 'تحديث موقع المبنى' : 'إضافة موقع المبنى'}
-          aria-label={located ? 'تحديث موقع المبنى' : 'إضافة موقع المبنى'}
-          className={`w-14 rounded-xl border-2 bg-white shadow-sm flex items-center justify-center disabled:opacity-60 ${
-            located ? 'border-green-600/40 text-green-700' : 'border-transparent text-maroon'
-          }`}
-        >
-          {busy ? <Loader2 className="w-6 h-6 animate-spin" /> : <MapPin className="w-6 h-6" fill={located ? 'currentColor' : 'none'} />}
-        </button>
+        {/* the pin shows only while the building has no location; once located (green) it is hidden */}
+        {!located && (
+          <button
+            type="button"
+            onClick={capture}
+            disabled={busy}
+            title={located ? 'تحديث موقع المبنى' : 'إضافة موقع المبنى'}
+            aria-label={located ? 'تحديث موقع المبنى' : 'إضافة موقع المبنى'}
+            className={`w-14 rounded-xl border-2 bg-white shadow-sm flex items-center justify-center disabled:opacity-60 ${
+              located ? 'border-green-600/40 text-green-700' : 'border-transparent text-maroon'
+            }`}
+          >
+            {busy ? <Loader2 className="w-6 h-6 animate-spin" /> : <MapPin className="w-6 h-6" fill={located ? 'currentColor' : 'none'} />}
+          </button>
+        )}
       </div>
 
       {status && (

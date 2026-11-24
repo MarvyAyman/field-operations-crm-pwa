@@ -31,3 +31,8 @@ input[type="date"] {
 }
 input[type="date"]::-webkit-date-and-time-value { text-align: right; min-height: 1.5em; margin: 0; }
 input, select, textarea { max-width: 100%; }
+
+/* the priest avatar: the eyelids close for a moment every few seconds */
+.pa-lid { transform-box: fill-box; transform-origin: top center; transform: scaleY(0); animation: pa-blink 4.5s infinite; }
+@keyframes pa-blink { 0%, 90%, 100% { transform: scaleY(0); } 94%, 96% { transform: scaleY(1); } }
+@media (prefers-reduced-motion: reduce) { .pa-lid { animation: none; } }

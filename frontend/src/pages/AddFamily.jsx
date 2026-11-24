@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
+import { useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { Save, UserPlus, MapPin, Loader2 } from 'lucide-react';
 import { useAuth } from '../auth.jsx';
 import { createRow, updateRow, deleteRow } from '../db';
@@ -46,6 +46,7 @@ export default function AddFamily() {
   const { familyId } = useParams();
   const [params] = useSearchParams();
   const navigate = useNavigate();
+  const location = useLocation();
   const { user, runSync } = useAuth();
   const { data, loading } = useTables([
     'areas', 'streets', 'buildings', 'families', 'people', 'family_phones', 'family_internal_notes', 'lookup_values',
@@ -167,6 +168,7 @@ export default function AddFamily() {
   const fromBuilding = params.get('building');
   const fromStreet = params.get('street');
   const fromArea = params.get('area');
+  const backState = location.state?.edit ? { edit: true } : undefined; // came from the family page in edit mode
   const back = editing
     ? `/family/${familyId}`
     : fromBuilding ? `/building/${fromBuilding}`
@@ -329,7 +331,7 @@ export default function AddFamily() {
       }
 
       runSync(); // sent now if online, otherwise when the connection returns
-      navigate(after === 'members' ? `/family/${id}/person/add?new=1` : `/family/${id}`, { replace: true });
+      navigate(after === 'members' ? `/family/${id}/person/add?new=1` : `/family/${id}`, { replace: true, state: after === 'members' ? undefined : backState });
     } catch (err) {
       console.error(err);
       setError('تعذّر الحفظ على الجهاز. حاول مرة أخرى.');
@@ -348,7 +350,7 @@ export default function AddFamily() {
 
   return (
     <div className="pb-20">
-      <PageHeader title={editing ? 'تعديل بيانات الأسرة' : 'إضافة أسرة جديدة'} back={back} />
+      <PageHeader title={editing ? 'تعديل بيانات الأسرة' : 'إضافة أسرة جديدة'} back={back} backState={backState} />
 
       <form className="p-4 space-y-6" onSubmit={submit} noValidate>
         {/* ================= حالة الأسرة (أول سؤال: يحدد باقي الأسئلة) ================= */}

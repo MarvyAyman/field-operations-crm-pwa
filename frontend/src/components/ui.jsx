@@ -25,12 +25,12 @@ export function Breadcrumbs({ crumbs }) {
   );
 }
 
-export function PageHeader({ title, subtitle, back, crumbs }) {
+export function PageHeader({ title, subtitle, back, backState, crumbs }) {
   return (
     <header className="bg-navy text-white p-4 rounded-b-2xl shadow-md">
       <div className="flex items-center">
         {back ? (
-          <Link to={back} className="p-2" aria-label="رجوع">
+          <Link to={back} state={backState} className="p-2" aria-label="رجوع">
             <ChevronRight className="w-6 h-6" />
           </Link>
         ) : (

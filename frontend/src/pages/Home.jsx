@@ -1,16 +1,20 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Search, LogOut, RefreshCw, AlertTriangle, BarChart3, ChevronLeft } from 'lucide-react';
+import { Search, Bell, RefreshCw, AlertTriangle, BarChart3, ChevronLeft } from 'lucide-react';
 import { useAuth } from '../auth.jsx';
 import { discardFailed } from '../db';
 import { useTables, useOutboxCounts, areaLabel } from '../data.js';
 import { ListLink } from '../components/ui.jsx';
 import { openGlobalSearch } from '../searchIndex.js';
+import PriestAvatar from '../components/PriestAvatar.jsx';
+import AccountSheet from '../components/AccountSheet.jsx';
+import BottomSheet from '../components/BottomSheet.jsx';
 
 export default function Home() {
   const { logout, runSync, syncing, syncError } = useAuth();
   const { data, loading } = useTables(['areas', 'streets', 'buildings', 'families']);
   const counts = useOutboxCounts();
+  const [sheet, setSheet] = useState(null); // 'account' | 'notifications' | null
 
   // families per area  (family -> building -> street -> area)
   const areas = useMemo(() => {
@@ -52,11 +56,19 @@ export default function Home() {
       <header className="bg-navy text-white p-6 rounded-b-3xl relative overflow-hidden text-center shadow-md">
         <button
           type="button"
-          onClick={handleLogout}
-          className="absolute left-4 top-4 p-2 rounded-full bg-white/10"
-          aria-label="تسجيل الخروج"
+          onClick={() => setSheet('account')}
+          className="absolute left-4 top-4 rounded-full ring-2 ring-gold/70"
+          aria-label="الحساب"
         >
-          <LogOut className="w-5 h-5" />
+          <PriestAvatar size={44} />
+        </button>
+        <button
+          type="button"
+          onClick={() => setSheet('notifications')}
+          className="absolute right-4 top-4 flex h-11 w-11 items-center justify-center rounded-full bg-white/10"
+          aria-label="الإشعارات"
+        >
+          <Bell className="w-5 h-5" />
         </button>
 
         <div className="mb-2">
@@ -163,6 +175,16 @@ export default function Home() {
           </>
         )}
       </div>
+      {sheet === 'account' && <AccountSheet onClose={() => setSheet(null)} onLogout={handleLogout} />}
+      {sheet === 'notifications' && (
+        <BottomSheet title="الإشعارات" onClose={() => setSheet(null)}>
+          <div className="flex flex-col items-center gap-2 py-6 text-center">
+            <span className="flex h-14 w-14 items-center justify-center rounded-full bg-gold/20 text-maroon"><Bell className="w-7 h-7" /></span>
+            <p className="font-bold text-navy">قيد التطوير</p>
+            <p className="text-sm text-gray-500">هنا هتوصلك إشعارات الخدمة قريبًا.</p>
+          </div>
+        </BottomSheet>
+      )}
     </div>
   );
 }
